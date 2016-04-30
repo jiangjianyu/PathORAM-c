@@ -2,23 +2,33 @@
 // Created by jyjia on 2016/4/29.
 //
 
+#include "crypt.h"
+
 int crypt_init() {
     cr_ctx = new malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
-    sodium_init();
-    if (crypto_aead_aes256gcm_is_available() == 0) {
-        abort(); /* Not available on this CPU */
-    }
     sprintf(cr_ctx->key, KEY);
     randombytes_buf(cr_ctx->nonce, sizeof(nonce));
 }
 
-void encrypt_message(unsigned char *ciphertext, unsigned char *message, int len) {
+void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len) {
     crypto_secretbox_easy(ciphertext, message, len, cr_ctx->nonce, cr_ctx->key);
 }
 
-int decrypt(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
+crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len) {
+    crypt_ctx *ctx = malloc(sizeof(crypt_ctx));
+    randombytes_buf(cr_ctx->nonce, sizeof(nonce));
+    randombytes_buf(cr_ctx->key, sizeof(key));
+    crypto_secretbox_easy(ciphertext, message, len, ctx->nonce, ctx.key);
+    return ctx;
+}
+
+int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
     return crypto_secretbox_open_easy(message, ciphertext, cipher_len, cr_ctx->nonce, cr_ctx->key);
+}
+
+int decrypt_message_gen(unsigned char* message, unsigned char *ciphertext, int cipher_len, crypt_ctx *ctx) {
+    return crypto_secretbox_open_easy(message, ciphertext, cipher_len, ctx->nonce, ctx->key);
 }
 
 typedef struct {
@@ -34,7 +44,7 @@ int get_random_permutation(int len, int random[]) {
     two_random random_list[len];
     int i;
     for (i = 0; i < len; i++) {
-        random_list[i].random = randombutes_uniform(len << 7);
+        random_list[i].random = randombytes_uniform(len << 7);
         random_list[i].no = i;
     }
     qsort(random_list, len, sizeof(two_random), cmp);

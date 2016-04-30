@@ -33,9 +33,10 @@ typedef struct {
 
 typedef struct {
     int mem_counter;
+    int size;
     oram_bucket *bucket_list[ORAM_TOTAL_BUCKET];
     unsigned char* read_block_list[ORAM_TREE_DEPTH];
-    unsigned char return_block[ORAM_BLOCK_SIZE];
+    unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
 } storage_ctx;
 
 int read_bucket_from_file(int bucket_id, storage_ctx *ctx);
@@ -46,6 +47,5 @@ int flush_buckets(storage_ctx *ctx, int remain_in_mem);
 
 oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx);
 
-int invalidate_bucket_offset(int bucket_id, int bucket_offset, storage_ctx *ctx);
 
 #endif //PATHORAM_BUCKET_H

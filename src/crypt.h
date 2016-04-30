@@ -29,10 +29,12 @@ int get_random(int range);
 
 int* get_random_permutation(int len);
 
-char* get_random_str(int len);
+void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len);
 
-void encrypt_message(unsigned char *ciphertext, unsigned char *message, int len);
+crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len);
 
-int decrypt_message(unsigned char* message, unsigned char *ciphertext, int cipher_len);
+int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len);
+
+int decrypt_message_gen(unsigned char* message, unsigned char *ciphertext, int cipher_len, crypt_ctx *ctx);
 
 #endif //PATHORAM_CRYPT_H
