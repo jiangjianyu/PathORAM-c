@@ -59,8 +59,12 @@ typedef struct {
     int size;
 } socket_init;
 
-#define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket_r) + sizeof(int)
-#define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata_r) + sizeof(int)
-#define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block_r) + sizeof(int)
+#define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + sizeof(int)
+#define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + sizeof(int)
+#define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block) + sizeof(int)
+
+#define ORAM_SOCKET_READ_SIZE_R sizeof(socket_read_bucket_r) + sizeof(int)
+#define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + sizeof(int)
+#define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + sizeof(int)
 
 #endif //PATHORAM_SOCKET_H

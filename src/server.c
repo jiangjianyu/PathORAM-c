@@ -22,8 +22,7 @@ int get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx)
     meta_ctx->pos = pos;
     int i = 0;
     for (; ; pos >>= 1, ++i) {
-        memcpy(&meta_ctx->metadata[i], get_bucket(pos, sto_ctx)->encrypt_metadata, sizeof(ORAM_CRYPT_META_SIZE));
-        pos >>= 1;
+        memcpy(&meta_ctx->metadata[i], get_bucket(pos, sto_ctx)->encrypt_metadata, ORAM_CRYPT_META_TOTAL_SIZE);
         if (pos == 0)
             break;
     }
@@ -53,6 +52,8 @@ int init_server(int size, storage_ctx *sto_ctx) {
         sto_ctx->bucket_list[i]->read_counter = 0;
         memset(sto_ctx->bucket_list[i]->valid_bits, 1, sizeof(sto_ctx->bucket_list[i]->valid_bits));
     }
+    sto_ctx->size = size;
+    sto_ctx->mem_counter = size;
 }
 
 int server_run(oram_args_t *args) {
@@ -79,7 +80,7 @@ int server_run(oram_args_t *args) {
             case SOCKET_READ_BUCKET: read_bucket(
                         ((socket_read_bucket *)sock_ctx->buf)->bucket_id,
                         (socket_read_bucket_r *)sock_ctx_r->buf, sto_ctx);
-                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE,
+                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
                 break;
             case SOCKET_WRITE_BUCKET:
@@ -89,13 +90,13 @@ int server_run(oram_args_t *args) {
             case SOCKET_GET_META:
                 get_metadata(((socket_get_metadata *)sock_ctx->buf)->pos,
                              (socket_get_metadata_r *)sock_ctx_r->buf, sto_ctx);
-                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE,
+                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
                 break;
             case SOCKET_READ_BLOCK:
                 socket_read_block *read_block_ctx = (socket_read_block *)sock_ctx->buf;
                 read_block(read_block_ctx->pos, read_block_ctx->offsets, (socket_read_block_r *)sock_ctx_r->buf, sto_ctx);
-                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE,
+                sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
                 break;
             case SOCKET_INIT:

@@ -5,10 +5,34 @@
 #ifndef PATHORAM_CLIENT_H
 #define PATHORAM_CLIENT_H
 
-int get_metadatas();
+#include "bucket.h"
+#include "uthash.h"
+#include "oram.h"
+#include "stash.h"
+#include "crypt.h"
+#include "socket.h"
 
-int gen_block_offsets();
+#define ORAM_RESHUFFLE_RATE 20
 
-int client_run();
+typedef struct {
+    int oram_size;
+    int *position_map;
+    client_stash *stash;
+    int round;
+    int socket;
+    int eviction_g;
+    socklen_t addrlen;
+    struct sockaddr_in server_addr;
+} client_ctx;
+
+void access(int address, oram_access_op op, unsigned char data[]);
+
+void evit_path();
+
+void early_reshuffle(int bucket_id);
+
+unsigned char* read_path(int pos, int address);
+
+int client_init();
 
 #endif //PATHORAM_CLIENT_H

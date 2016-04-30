@@ -15,6 +15,9 @@
 
 #define ORAM_BLOCK_SIZE 4096
 
-
+typedef enum {
+    ORAM_ACCESS_READ = 0,
+    ORAM_ACCESS_WRITE = 1
+} oram_access_op;
 
 #endif //PATHORAM_ORAM_H
