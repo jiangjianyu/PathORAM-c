@@ -4,6 +4,11 @@
 
 #include "crypt.h"
 
+void gen_crypt_pair(crypt_ctx *ctx) {
+    randombytes_buf(cr_ctx->nonce, sizeof(ctx->nonce));
+    randombytes_buf(cr_ctx->key, sizeof(ctx->key));
+}
+
 int crypt_init() {
     cr_ctx = new malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
@@ -15,12 +20,8 @@ void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, 
     crypto_secretbox_easy(ciphertext, message, len, cr_ctx->nonce, cr_ctx->key);
 }
 
-crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len) {
-    crypt_ctx *ctx = malloc(sizeof(crypt_ctx));
-    randombytes_buf(cr_ctx->nonce, sizeof(nonce));
-    randombytes_buf(cr_ctx->key, sizeof(key));
-    crypto_secretbox_easy(ciphertext, message, len, ctx->nonce, ctx.key);
-    return ctx;
+void encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx) {
+    crypto_secretbox_easy(ciphertext, message, len, ctx->nonce, ctx->key);
 }
 
 int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
@@ -40,7 +41,7 @@ int cmp(const void *a, const void *b) {
     return ((two_random *)a)->random <= ((two_random *)b)->random;
 }
 
-int get_random_permutation(int len, int random[]) {
+int get_random_permutation(int len, int permutation[]) {
     two_random random_list[len];
     int i;
     for (i = 0; i < len; i++) {

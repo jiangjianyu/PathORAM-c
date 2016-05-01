@@ -27,11 +27,13 @@ int crypt_init();
 
 int get_random(int range);
 
-int* get_random_permutation(int len);
+void gen_crypt_pair(crypt_ctx *ctx);
+
+int get_random_permutation(int len, int permutation[]);
 
 void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len);
 
-crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len);
+crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx);
 
 int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len);
 

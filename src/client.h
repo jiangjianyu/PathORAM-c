@@ -11,6 +11,7 @@
 #include "stash.h"
 #include "crypt.h"
 #include "socket.h"
+#include "args.h"
 
 #define ORAM_RESHUFFLE_RATE 20
 
@@ -23,11 +24,12 @@ typedef struct {
     int eviction_g;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
+    unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
 
 void access(int address, oram_access_op op, unsigned char data[]);
 
-void evit_path();
+void evict_path();
 
 void early_reshuffle(int bucket_id);
 

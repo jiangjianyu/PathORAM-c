@@ -22,6 +22,7 @@ typedef struct {
     unsigned char data[ORAM_BUCKET_SIZE][ORAM_CRYPT_DATA_SIZE];
 } oram_bucket;
 
+#define ORAM_META_SIZE sizeof(oram_bucket_metadata)
 #define ORAM_CRYPT_META_SIZE sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD
 
 typedef struct {
