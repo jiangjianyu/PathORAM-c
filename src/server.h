@@ -20,16 +20,16 @@ typedef struct {
     unsigned char *buff_r;
 } server_ctx;
 
-int read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx);
+void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx);
 
-int write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx);
+void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx);
 
-int get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx);
+void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx);
 
-int read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx);
+void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx);
 
-int init_server(int size, storage_ctx *sto_ctx);
+void init_server(int size, storage_ctx *sto_ctx);
 
-int server_run(oram_args_t *args);
+void server_run(oram_args_t *args);
 
 #endif //PATHORAM_SERVER_H

@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+
 static const char *help_message =
 "usage: pathoram -c config_file -m [server|client] -b [host] -p port -d [start|stop|restart] -v\n"
 "\n"
@@ -19,18 +20,25 @@ static const char *help_message =
 "  -p port               listen port\n"
 "\n";
 
-static int print_help() {
+static void print_help() {
     printf(help_message);
     exit(1);
 }
 
-int args_parse(oram_args_t *args, int argc, char **argv) {
+void load_default_args(oram_args_t *args) {
+    args->host = ORAM_DEFAULT_HOST;
+    args->port = ORAM_DEFAULT_PORT;
+}
+
+void args_parse(oram_args_t *args, int argc, char **argv) {
     int ch;
     bzero(args, sizeof(oram_args_t));
-    while ((ch = getopt(argc, argv, "b:s:vm:h")) != -1) {
+    load_default_args(args);
+    while ((ch = getopt(argc, argv, "b:s:p:vm:h")) != -1) {
         switch (ch) {
             case 'b': args->host = optarg;
-                args->port = 40000;
+                break;
+            case 'p': args->port = atoi(optarg);
                 break;
             case 's':
                 if (strcmp("start", optarg) == 0)
@@ -58,3 +66,4 @@ int args_parse(oram_args_t *args, int argc, char **argv) {
         }
     }
 }
+

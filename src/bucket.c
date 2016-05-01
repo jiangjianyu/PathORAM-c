@@ -6,21 +6,22 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "bucket.h"
+#include "log.h"
 
-int read_bucket_from_file(int bucket_id, storage_ctx *ctx) {
+void read_bucket_from_file(int bucket_id, storage_ctx *ctx) {
     char filename[50];
     sprintf(filename, ORAM_FILE_FORMAT, bucket_id);
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        return -1;
-    }
     ctx->bucket_list[bucket_id] = malloc(sizeof(oram_bucket));
-    read(fd, (void *)ctx->bucket_list[bucket_id], sizeof(oram_bucket));
-    close(fd);
-    return 0;
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0)
+        logf("Error Reading File to Mem");
+    else {
+        read(fd, (void *) ctx->bucket_list[bucket_id], sizeof(oram_bucket));
+        close(fd);
+    }
 }
 
-int write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
+void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
     char filename[50];
     sprintf(filename, ORAM_FILE_FORMAT, bucket_id);
     int fd = open(filename, O_WRONLY | O_CREAT, S_IRUSR|S_IWUSR);
@@ -30,16 +31,14 @@ int write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
         ctx->bucket_list[bucket_id] = 0;
     }
     close(fd);
-    return 0;
 }
 
-int flush_buckets(storage_ctx *ctx, int remain_in_mem) {
+void flush_buckets(storage_ctx *ctx, int remain_in_mem) {
     int i = 0;
     for (; i < ctx->size; i++) {
         if (ctx->bucket_list[i] != 0)
             write_bucket_to_file(i, ctx, remain_in_mem);
     }
-    return 0;
 }
 
 oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx) {

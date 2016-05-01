@@ -124,14 +124,16 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
             break;
     }
     decrypt_message_gen(data, sock_block_r->data, ORAM_CRYPT_DATA_SIZE, cpt_ctx);
+    return found;
 }
 
 int read_path(int pos, int address, unsigned char data[], client_ctx *ctx) {
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     oram_bucket_encrypted_metadata metadata[ORAM_TREE_DEPTH];
     get_metadata_helper(pos, socket_buf, metadata, ctx);
-    read_block_helper(pos, address, socket_buf, metadata, data, ctx);
+    int found = read_block_helper(pos, address, socket_buf, metadata, data, ctx);
     early_reshuffle(pos, metadata, ctx);
+    return found;
 }
 
 void access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx) {
@@ -152,7 +154,9 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
         memcpy(data, block->data, ORAM_BLOCK_SIZE);
     else
         memcpy(block->data, data, ORAM_BLOCK_SIZE);
+    block->bucket_id = position_new;
     add_to_stash(ctx->stash, block);
+    //DO NOT Reshuffle in the first time
     ctx->round = (++ctx->round) % ORAM_RESHUFFLE_RATE;
     if (ctx->round == 0)
         evict_path(ctx);

@@ -5,6 +5,9 @@
 #ifndef PATHORAM_ARGS_H
 #define PATHORAM_ARGS_H
 
+#define ORAM_DEFAULT_HOST "127.0.0.1"
+#define ORAM_DEFAULT_PORT 31111
+
 typedef enum {
     ORAM_MODE_SERVER = 0,
     ORAM_MODE_CLIENT = 1
@@ -24,6 +27,6 @@ typedef struct {
     oram_daemon daemon;
 } oram_args_t;
 
-int args_parse(oram_args_t *args, int argc, char **argv);
+void args_parse(oram_args_t *args, int argc, char **argv);
 
 #endif //PATHORAM_ARGS_H

@@ -71,4 +71,13 @@ typedef struct {
 #define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + sizeof(int)
 #define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + sizeof(int)
 
+void socket_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
+                 char *host, int port) {
+    inet_aton(host, addr->sin_addr);
+    addr->sin_port = htons(port);
+    addr->sin_family = AF_INET;
+    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    *addrlen = sizeof(sv_ctx->server_addr);
+}
+
 #endif //PATHORAM_SOCKET_H

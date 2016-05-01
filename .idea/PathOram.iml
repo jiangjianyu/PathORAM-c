@@ -1,42 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src/client.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/server.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/oram.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/stash.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/server.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/args.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/main.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/daemon.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/args.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/crypt.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/log.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/client.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/crypt.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/log.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/socket.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/bucket.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/bucket.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/stash.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
-    </content>
+    <content url="file://$MODULE_DIR$" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
       <library name="Header Search Paths">
-        <CLASSES>
-          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.9/include-fixed" />
-          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.9/include" />
-          <root url="file:///usr/include" />
-          <root url="file:///usr/local/include" />
-        </CLASSES>
-        <SOURCES>
-          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.9/include-fixed" />
-          <root url="file:///usr/lib/gcc/x86_64-linux-gnu/4.9/include" />
-          <root url="file:///usr/include" />
-          <root url="file:///usr/local/include" />
-        </SOURCES>
+        <CLASSES />
+        <SOURCES />
       </library>
     </orderEntry>
   </component>
