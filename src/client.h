@@ -27,14 +27,28 @@ typedef struct {
     unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
 
-void access(int address, oram_access_op op, unsigned char data[]);
+int get_random_dummy(_bool valid_bits[], int offsets[]);
 
-void evict_path();
+int gen_reverse_lexicographic(int g);
 
-void early_reshuffle(int bucket_id);
+int read_bucket(client_ctx *ctx ,int bucket_id,
+                unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-unsigned char* read_path(int pos, int address);
+int write_bucket(client_ctx *ctx, int bucket_id, stash_block *stash_list,
+                 unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-int client_init();
+int get_metadata(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
+
+int read_block(int pos, unsigned char socket_buf, unsigned char data[], client_ctx *ctx);
+
+int read_path(int pos, int address, unsigned char data[], client_ctx *ctx);
+
+void access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx);
+
+void evict_path(client_ctx *ctx);
+
+void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
+
+int client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
 
 #endif //PATHORAM_CLIENT_H

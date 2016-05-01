@@ -19,14 +19,3 @@ void perror_timestamp(const char *msg, const char *file, int line) {
     fprintf(stderr, "%s:%d ", file, line);
     perror(msg);
 }
-
-void print_hex_memory(void *mem, size_t len) {
-    int i;
-    unsigned char *p = (unsigned char *)mem;
-    for (i = 0; i < len; i++) {
-        printf("%02x ", p[i]);
-        if (i % 16 == 15)
-            printf("\n");
-    }
-    printf("\n");
-}

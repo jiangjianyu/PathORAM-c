@@ -24,7 +24,6 @@ typedef struct {
     oram_daemon daemon;
 } oram_args_t;
 
-//TODO
-int parse_config();
+int args_parse(oram_args_t *args, int argc, char **argv);
 
 #endif //PATHORAM_ARGS_H
