@@ -5,6 +5,10 @@
 #ifndef PATHORAM_SOCKET_H
 #define PATHORAM_SOCKET_H
 
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include "bucket.h"
 
 #define ORAM_SOCKET_BUFFER 10240
@@ -32,7 +36,7 @@ typedef struct {
 } socket_read_bucket;
 
 typedef struct {
-    int bucket_id;
+    unsigned int bucket_id;
     oram_bucket bucket;
 } socket_read_bucket_r;
 

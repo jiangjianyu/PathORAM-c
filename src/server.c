@@ -3,12 +3,12 @@
 //
 
 #include "server.h"
-#include "socket.h"
+#include "log.h"
 
 int read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
     oram_bucket *bucket = get_bucket(bucket_id, sto_ctx);
     memcpy(&read_bucket_ctx->bucket, bucket, sizeof(oram_bucket));
-    read_bucket_ctx->bucket_id = bucket_id;
+    read_bucket_ctx->bucket_id = (unsigned int) bucket_id;
 }
 
 int write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {
@@ -29,7 +29,7 @@ int get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx)
 }
 
 int read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
-    int i = 0;
+    int i = 0, j;
     oram_bucket *bucket;
     bzero(sto_ctx->return_block, sizeof(ORAM_CRYPT_DATA_SIZE));
     for (; ; pos >>= 1, ++i) {
@@ -37,7 +37,8 @@ int read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, stor
         bucket = get_bucket(pos, sto_ctx);
         bucket->valid_bits[offsets[i]] = 0;
         bucket->read_counter++;
-        sto_ctx->return_block ^= bucket->data[offsets[i]];
+        for (j = 0;j < ORAM_CRYPT_DATA_SIZE;j++)
+            sto_ctx->return_block[j] ^= bucket->data[offsets[i]][j];
         if (pos == 0)
             break;
     }
@@ -68,6 +69,7 @@ int server_run(oram_args_t *args) {
     sv_ctx->addrlen = sizeof(sv_ctx->server_addr);
     sv_ctx->buff = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->buff_r = malloc(ORAM_SOCKET_BUFFER);
+    sv_ctx->running = 1;
     while (sv_ctx->running == 1) {
         bzero(sv_ctx->buff, ORAM_SOCKET_BUFFER);
         bzero(sv_ctx->buff_r, ORAM_SOCKET_BUFFER);
@@ -76,31 +78,36 @@ int server_run(oram_args_t *args) {
                  &sv_ctx->addrlen);
         socket_ctx *sock_ctx = (socket_ctx *)sv_ctx->buff;
         socket_ctx *sock_ctx_r = (socket_ctx *)sv_ctx->buff_r;
+        socket_write_bucket *write_ctx = (socket_write_bucket *)sock_ctx->buf;
+        socket_read_block *read_block_ctx = (socket_read_block *)sock_ctx->buf;
         switch (sock_ctx->type) {
             case SOCKET_READ_BUCKET: read_bucket(
                         ((socket_read_bucket *)sock_ctx->buf)->bucket_id,
                         (socket_read_bucket_r *)sock_ctx_r->buf, sto_ctx);
                 sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
+                logf("Message->Bucket Read");
                 break;
             case SOCKET_WRITE_BUCKET:
-                socket_write_bucket *write_ctx = (socket_write_bucket *)sock_ctx->buf;
                 write_bucket(write_ctx->bucket_id, &write_ctx->bucket, sto_ctx);
+                logf("Message->Bucket Write");
                 break;
             case SOCKET_GET_META:
                 get_metadata(((socket_get_metadata *)sock_ctx->buf)->pos,
                              (socket_get_metadata_r *)sock_ctx_r->buf, sto_ctx);
                 sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
+                logf("Message->Metadata Request");
                 break;
             case SOCKET_READ_BLOCK:
-                socket_read_block *read_block_ctx = (socket_read_block *)sock_ctx->buf;
                 read_block(read_block_ctx->pos, read_block_ctx->offsets, (socket_read_block_r *)sock_ctx_r->buf, sto_ctx);
                 sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R,
                        0, (struct sockaddr *)&sv_ctx->client_addr, sv_ctx->addrlen);
+                logf("Message->Block Read");
                 break;
             case SOCKET_INIT:
                 init_server(((socket_init *)sock_ctx->buf)->size, sto_ctx);
+                logf("Message->Server Init");
                 break;
             default:
                 break;

@@ -27,19 +27,20 @@ typedef struct {
     unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
 
-int get_random_dummy(_bool valid_bits[], int offsets[]);
+int get_random_dummy(_Bool valid_bits[], unsigned int offsets[]);
 
 int gen_reverse_lexicographic(int g);
 
-int read_bucket(client_ctx *ctx ,int bucket_id,
+int read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-int write_bucket(client_ctx *ctx, int bucket_id, stash_block *stash_list,
+int write_bucket_to_server(client_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-int get_metadata(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
+int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
 
-int read_block(int pos, unsigned char socket_buf, unsigned char data[], client_ctx *ctx);
+int read_block_helper(int pos, int address,unsigned char socket_buf[], oram_bucket_encrypted_metadata metadata[],
+                      unsigned char data[], client_ctx *ctx);
 
 int read_path(int pos, int address, unsigned char data[], client_ctx *ctx);
 

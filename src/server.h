@@ -5,8 +5,10 @@
 #ifndef PATHORAM_SERVER_H
 #define PATHORAM_SERVER_H
 
+
 #include "bucket.h"
 #include "args.h"
+#include "socket.h"
 
 typedef struct {
     int socket;

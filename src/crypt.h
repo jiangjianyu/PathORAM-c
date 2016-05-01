@@ -8,13 +8,13 @@
 #include <sodium.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 #include "oram.h"
 
 #define ORAM_CRYPT_KEY_LEN crypto_aead_aes256gcm_KEYBYTES
 #define ORAM_CRYPT_NONCE_LEN crypto_secretbox_NONCEBYTES
 #define ORAM_CRYPT_OVERHEAD crypto_secretbox_MACBYTES
 #define KEY "PATHORAM"
-#define get_random(range) randombytes_uniform(range)
 
 typedef struct {
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -25,15 +25,15 @@ crypt_ctx *cr_ctx;
 
 int crypt_init();
 
-int get_random(int range);
-
 void gen_crypt_pair(crypt_ctx *ctx);
 
-int get_random_permutation(int len, int permutation[]);
+int get_random(int range);
+
+int get_random_permutation(int len, unsigned int permutation[]);
 
 void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len);
 
-crypt_ctx* encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx);
+void encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx);
 
 int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len);
 

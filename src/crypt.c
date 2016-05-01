@@ -2,6 +2,7 @@
 // Created by jyjia on 2016/4/29.
 //
 
+
 #include "crypt.h"
 
 void gen_crypt_pair(crypt_ctx *ctx) {
@@ -10,10 +11,14 @@ void gen_crypt_pair(crypt_ctx *ctx) {
 }
 
 int crypt_init() {
-    cr_ctx = new malloc(sizeof(crypt_ctx));
+    cr_ctx = malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
     sprintf(cr_ctx->key, KEY);
-    randombytes_buf(cr_ctx->nonce, sizeof(nonce));
+    randombytes_buf(cr_ctx->nonce, ORAM_CRYPT_NONCE_LEN);
+}
+
+int get_random(int range) {
+    randombytes_uniform(range);
 }
 
 void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len) {
@@ -41,15 +46,15 @@ int cmp(const void *a, const void *b) {
     return ((two_random *)a)->random <= ((two_random *)b)->random;
 }
 
-int get_random_permutation(int len, int permutation[]) {
+int get_random_permutation(int len, unsigned int permutation[]) {
     two_random random_list[len];
     int i;
     for (i = 0; i < len; i++) {
-        random_list[i].random = randombytes_uniform(len << 7);
+        random_list[i].random = get_random(len << 7);
         random_list[i].no = i;
     }
     qsort(random_list, len, sizeof(two_random), cmp);
     for (i = 0; i < len; i++)
-        random[i] = random_list[i].no;
+        permutation[i] = (unsigned) random_list[i].no;
     return 0;
 }

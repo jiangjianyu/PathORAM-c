@@ -3,7 +3,7 @@
 //
 
 #include <time.h>
-
+#include "log.h"
 int verbose_mode;
 
 void log_timestamp(FILE *out) {

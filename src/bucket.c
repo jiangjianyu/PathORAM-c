@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "bucket.h"
 
 int read_bucket_from_file(int bucket_id, storage_ctx *ctx) {
@@ -22,7 +23,7 @@ int read_bucket_from_file(int bucket_id, storage_ctx *ctx) {
 int write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
     char filename[50];
     sprintf(filename, ORAM_FILE_FORMAT, bucket_id);
-    int fd = open(filename, O_WRONLY | O_CREATE, S_IRUSR|S_IWUSR);
+    int fd = open(filename, O_WRONLY | O_CREAT, S_IRUSR|S_IWUSR);
     write(fd, (void *)ctx->bucket_list[bucket_id], sizeof(oram_bucket));
     if (!remain_in_mem) {
         free(ctx->bucket_list[bucket_id]);

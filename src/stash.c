@@ -3,7 +3,6 @@
 //
 
 #include "stash.h"
-#include <stdlib.h>
 
 int init_stash(client_stash *stash) {
     stash->address_to_stash = NULL;
@@ -12,15 +11,15 @@ int init_stash(client_stash *stash) {
 }
 
 void add_to_stash(client_stash *stash, stash_block *block) {
-    HASH_ADD_INT(stash->address_to_stash, block->address, block);
+    HASH_ADD_INT(stash->address_to_stash, address, block);
     LL_APPEND(stash->bucket_to_stash[block->bucket_id], block);
     stash->bucket_to_stash_count[block->bucket_id]++;
 }
 
 //return remove block
-int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block block_list[]) {
+int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block *block_list[]) {
     int delete_max = stash->bucket_to_stash_count[bucket_id];
-    stash_block now, *next = stash->bucket_to_stash[bucket_id];
+    stash_block *now, *next = stash->bucket_to_stash[bucket_id];
     int i = 0;
     if (delete_max > max)
         delete_max = max;

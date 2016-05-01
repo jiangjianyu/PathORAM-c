@@ -8,11 +8,10 @@
 #include "utlist.h"
 #include "uthash.h"
 #include "bucket.h"
-#define NULL 0
 
 typedef struct stash_block{
-    int address;
-    int bucket_id;
+    unsigned int address;
+    unsigned int bucket_id;
     unsigned char data[ORAM_BLOCK_SIZE];
     struct stash_block *next;
     UT_hash_handle hh;
@@ -30,7 +29,7 @@ int init_stash(client_stash *stash);
 void add_to_stash(client_stash *stash ,stash_block *block);
 
 //return remove block
-int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block block_list[]);
+int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block *block_list[]);
 
 stash_block* find_remove_by_address(client_stash *stash, int address);
 

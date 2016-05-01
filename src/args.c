@@ -5,6 +5,7 @@
 #include "args.h"
 #include "log.h"
 #include <unistd.h>
+#include <stdlib.h>
 
 static const char *help_message =
 "usage: pathoram -c config_file -m [server|client] -b [host] -p port -d [start|stop|restart] -v\n"
@@ -26,11 +27,10 @@ static int print_help() {
 int args_parse(oram_args_t *args, int argc, char **argv) {
     int ch;
     bzero(args, sizeof(oram_args_t));
-    while ((ch = getopt(argc, argv, "hs:c:v")) != -1) {
+    while ((ch = getopt(argc, argv, "b:s:vm:h")) != -1) {
         switch (ch) {
-            case 'h': print_args();
-                break;
             case 'b': args->host = optarg;
+                args->port = 40000;
                 break;
             case 's':
                 if (strcmp("start", optarg) == 0)
@@ -50,6 +50,7 @@ int args_parse(oram_args_t *args, int argc, char **argv) {
                     args->mode = ORAM_MODE_CLIENT;
                 else
                     errf("unknow command %s", optarg);
+                break;
             case 'h': print_help();
                 break;
             default:

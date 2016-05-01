@@ -6,6 +6,7 @@
 #define PATHORAM_BUCKET_H
 
 #include "crypt.h"
+#include "bucket.h"
 
 #define ORAM_FILE_FORMAT "ORAM_BUCKET_%d.bucket"
 
@@ -15,19 +16,21 @@ typedef struct {
     crypt_ctx encrypt_par;
 } oram_bucket_metadata;
 
+#define ORAM_CRYPT_META_SIZE sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD
+#define ORAM_CRYPT_DATA_SIZE ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD
 typedef struct {
     unsigned int read_counter;
-    _bool valid_bits[ORAM_BUCKET_SIZE];
+    _Bool valid_bits[ORAM_BUCKET_SIZE];
     unsigned char encrypt_metadata[ORAM_CRYPT_META_SIZE];
     unsigned char data[ORAM_BUCKET_SIZE][ORAM_CRYPT_DATA_SIZE];
 } oram_bucket;
 
 #define ORAM_META_SIZE sizeof(oram_bucket_metadata)
-#define ORAM_CRYPT_META_SIZE sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD
+
 
 typedef struct {
     unsigned int read_counter;
-    _bool valid_bits[ORAM_BUCKET_SIZE];
+    _Bool valid_bits[ORAM_BUCKET_SIZE];
     unsigned char encrypt_metadata[ORAM_CRYPT_META_SIZE];
 } oram_bucket_encrypted_metadata;
 
