@@ -10,16 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="68cecb5a-630c-4520-917d-97b1bdac91a0" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/args.c" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/CMakeLists.txt" afterPath="$PROJECT_DIR$/CMakeLists.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/args.h" afterPath="$PROJECT_DIR$/src/args.h" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/client.c" afterPath="$PROJECT_DIR$/src/client.c" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/client.h" afterPath="$PROJECT_DIR$/src/client.h" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/log.c" afterPath="$PROJECT_DIR$/src/log.c" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/log.h" afterPath="$PROJECT_DIR$/src/log.h" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/main.c" afterPath="$PROJECT_DIR$/src/main.c" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/oram.h" afterPath="$PROJECT_DIR$/src/oram.h" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/crypt.h" afterPath="$PROJECT_DIR$/src/crypt.h" />
     </list>
     <ignored path="PathOram.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -75,6 +67,16 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="crypt.h" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/src/crypt.h">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="176">
+              <caret line="10" column="17" selection-start-line="10" selection-start-column="17" selection-end-line="10" selection-end-column="17" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="socket.h" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/socket.h">
           <provider selected="true" editor-type-id="text-editor">
@@ -106,10 +108,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="client.c" pinned="false" current-in-tab="true">
+      <file leaf-file-name="client.c" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/client.c">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="44">
+            <state relative-caret-position="638">
               <caret line="158" column="59" selection-start-line="158" selection-start-column="59" selection-end-line="158" selection-end-column="59" />
               <folding>
                 <element signature="e#0#2#0" expanded="true" />
@@ -147,7 +149,6 @@
         <option value="$PROJECT_DIR$/src/stash.h" />
         <option value="$PROJECT_DIR$/src/socket.h" />
         <option value="$PROJECT_DIR$/src/server.c" />
-        <option value="$PROJECT_DIR$/src/crypt.h" />
         <option value="$PROJECT_DIR$/src/crypt.c" />
         <option value="$PROJECT_DIR$/src/bucket.h" />
         <option value="$PROJECT_DIR$/src/stash.c" />
@@ -159,6 +160,7 @@
         <option value="$PROJECT_DIR$/src/log.h" />
         <option value="$PROJECT_DIR$/src/oram.h" />
         <option value="$PROJECT_DIR$/src/client.c" />
+        <option value="$PROJECT_DIR$/src/crypt.h" />
       </list>
     </option>
   </component>
@@ -448,7 +450,14 @@
       <option name="project" value="LOCAL" />
       <updated>1462007578302</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="//TODO&#10;debug">
+      <created>1462103858446</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1462103858447</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TodoView">
@@ -488,7 +497,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="ServerSide Finish&#10;Add Log&#10;//TODO&#10;ClientSide" />
-    <option name="LAST_COMMIT_MESSAGE" value="ServerSide Finish&#10;Add Log&#10;//TODO&#10;ClientSide" />
+    <MESSAGE value="//TODO&#10;debug" />
+    <option name="LAST_COMMIT_MESSAGE" value="//TODO&#10;debug" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -854,14 +864,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/crypt.h">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="550">
-          <caret line="27" column="12" selection-start-line="27" selection-start-column="12" selection-end-line="27" selection-end-column="12" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/bucket.h">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="206">
@@ -946,6 +948,17 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/client.c">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="638">
+          <caret line="158" column="59" selection-start-line="158" selection-start-column="59" selection-end-line="158" selection-end-column="59" />
+          <folding>
+            <element signature="e#0#2#0" expanded="true" />
+            <element signature="e#7525#7979#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/oram.h">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="220">
@@ -956,14 +969,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/client.c">
+    <entry file="file://$PROJECT_DIR$/src/crypt.h">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="44">
-          <caret line="158" column="59" selection-start-line="158" selection-start-column="59" selection-end-line="158" selection-end-column="59" />
-          <folding>
-            <element signature="e#0#2#0" expanded="true" />
-            <element signature="e#7525#7979#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="176">
+          <caret line="10" column="17" selection-start-line="10" selection-start-column="17" selection-end-line="10" selection-end-column="17" />
+          <folding />
         </state>
       </provider>
     </entry>

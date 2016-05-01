@@ -5,7 +5,7 @@
 #ifndef PATHORAM_CRYPT_H
 #define PATHORAM_CRYPT_H
 
-#include "libsodium/libsodium.h"
+#include <sodium.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "oram.h"
