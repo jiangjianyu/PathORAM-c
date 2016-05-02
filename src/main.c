@@ -18,7 +18,7 @@ int main (int argc, char* argv[]) {
     else {
         client_ctx ctx;
         client_init(&ctx, 10000, args);
-        oram_server_init(10000, ctx);
+        oram_server_init(10000, &ctx);
     }
     return 0;
 }
