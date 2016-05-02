@@ -73,11 +73,11 @@ typedef struct {
 
 void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port) {
-    inet_aton(host, addr->sin_addr);
+    inet_aton(host, &addr->sin_addr);
     addr->sin_port = htons(port);
     addr->sin_family = AF_INET;
     *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    *addrlen = sizeof(sv_ctx->server_addr);
+    *addrlen = sizeof(struct sockaddr_in);
 }
 
 #endif //PATHORAM_SOCKET_H
