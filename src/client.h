@@ -31,13 +31,13 @@ int get_random_dummy(_Bool valid_bits[], unsigned int offsets[]);
 
 int gen_reverse_lexicographic(int g);
 
-int read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
+void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-int write_bucket_to_server(client_ctx *ctx, int bucket_id,
+void write_bucket_to_server(client_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf, oram_bucket_metadata *meta);
 
-int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
+void get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
 
 int read_block_helper(int pos, int address,unsigned char socket_buf[], oram_bucket_encrypted_metadata metadata[],
                       unsigned char data[], client_ctx *ctx);
@@ -50,6 +50,6 @@ void evict_path(client_ctx *ctx);
 
 void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
 
-int client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
+void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
 
 #endif //PATHORAM_CLIENT_H

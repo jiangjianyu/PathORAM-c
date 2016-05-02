@@ -70,7 +70,7 @@ void server_run(oram_args_t *args) {
     storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
-    socket_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket, args->host, args->port);
+    sock_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket, args->host, args->port);
     sv_ctx->buff = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->buff_r = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->running = 1;

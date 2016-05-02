@@ -24,7 +24,7 @@ int gen_reverse_lexicographic(int g) {
     return reverse_int;
 }
 
-int read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
+void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf, oram_bucket_metadata *meta) {
     int i, pos_run;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
@@ -45,7 +45,7 @@ int read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
     }
 }
 
-int write_bucket_to_server(client_ctx *ctx, int bucket_id,
+void write_bucket_to_server(client_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf, oram_bucket_metadata *meta) {
     int count,i;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
@@ -67,7 +67,7 @@ int write_bucket_to_server(client_ctx *ctx, int bucket_id,
     sendto(ctx->socket, socket_buf, SOCKET_WRITE_BUCKET, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
 }
 
-int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx) {
+void get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx) {
     int pos_run, i;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     socket_get_metadata *sock_meta = (socket_get_metadata *)sock_ctx->buf;
@@ -142,7 +142,7 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
     stash_block *block;
     position_new = get_random(ctx->oram_size);
     position = ctx->position_map[address];
-    //TODO check data_in
+
     data_in = read_path(position, address, read_data, ctx);
     if (data_in == 0)
         block = find_remove_by_address(ctx->stash, address);
@@ -200,16 +200,12 @@ void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_
     }
 }
 
-int client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
+void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     int address_size = size_bucket * ORAM_BUCKET_REAL;
     ctx->oram_size = size_bucket;
     ctx->position_map = malloc(sizeof(int) * ctx->oram_size);
     ctx->stash = malloc(sizeof(client_stash));
-    inet_aton(args->host, &ctx->server_addr.sin_addr);
-    ctx->server_addr.sin_port = htons(args->port);
-    ctx->server_addr.sin_family = AF_INET;
-    ctx->socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    ctx->addrlen = sizeof(ctx->server_addr);
+    sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, args->host, args->port);
     bzero(ctx->stash, sizeof(client_stash));
-    bzero(ctx->position_map, sizeof(int) * ctx->oram_size);
+    bzero(ctx->position_map, sizeof(int) * address_size);
 }
