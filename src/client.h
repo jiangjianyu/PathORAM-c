@@ -52,4 +52,6 @@ void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_
 
 void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
 
+void oram_server_init(int bucket_size, client_ctx *ctx);
+
 #endif //PATHORAM_CLIENT_H

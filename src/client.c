@@ -162,6 +162,15 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
         evict_path(ctx);
 }
 
+void oram_server_init(int bucket_size, client_ctx *ctx) {
+    unsigned char buf[4096];
+    socket_ctx *sock_ctx = (socket_ctx *)buf;
+    socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
+    sock_ctx->type = SOCKET_INIT;
+    sock_init_ctx->size = bucket_size;
+    sendto(ctx->socket, buf, ORAM_SOCKET_INIT_SIZE, 0, &ctx->server_addr, ctx->addrlen);
+}
+
 void evict_path(client_ctx *ctx) {
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     int pos_run;
@@ -205,7 +214,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     ctx->oram_size = size_bucket;
     ctx->position_map = malloc(sizeof(int) * ctx->oram_size);
     ctx->stash = malloc(sizeof(client_stash));
-    sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, args->host, args->port);
+    sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, "127.0.0.1", args->port);
     bzero(ctx->stash, sizeof(client_stash));
     bzero(ctx->position_map, sizeof(int) * address_size);
 }
