@@ -2,6 +2,8 @@
 // Created by jyjia on 2016/5/2.
 //
 
+#include "socket.h"
+
 void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                char *host, int port) {
     inet_aton(host, &addr->sin_addr);
