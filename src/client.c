@@ -169,6 +169,7 @@ void oram_server_init(int bucket_size, client_ctx *ctx) {
     sock_ctx->type = SOCKET_INIT;
     sock_init_ctx->size = bucket_size;
     sendto(ctx->socket, buf, ORAM_SOCKET_INIT_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
+    logf("Init Request to Server");
 }
 
 void evict_path(client_ctx *ctx) {
@@ -217,4 +218,5 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, "127.0.0.1", args->port);
     bzero(ctx->stash, sizeof(client_stash));
     bzero(ctx->position_map, sizeof(int) * address_size);
+    logf("Client Init");
 }

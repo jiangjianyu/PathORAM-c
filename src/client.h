@@ -12,6 +12,7 @@
 #include "crypt.h"
 #include "socket.h"
 #include "args.h"
+#include "log.h"
 
 #define ORAM_RESHUFFLE_RATE 20
 
