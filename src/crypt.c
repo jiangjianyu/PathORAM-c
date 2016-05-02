@@ -60,5 +60,4 @@ void get_random_permutation(int len, unsigned int permutation[]) {
     qsort(random_list, len, sizeof(two_random), cmp);
     for (i = 0; i < len; i++)
         permutation[i] = (unsigned) random_list[i].no;
-    return 0;
 }
