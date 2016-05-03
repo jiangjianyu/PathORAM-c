@@ -45,7 +45,7 @@ void encrypt_message(unsigned char *ciphertext, unsigned char *message, int len)
 }
 
 int decrypt_message(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
-    if (crypto_secretbox_open_easy(message, ciphertext, cipher_len, ciphertext, cr_ctx->key) != 0) {
+    if (crypto_secretbox_open_easy(message, ciphertext + ORAM_CRYPT_NONCE_LEN, cipher_len, ciphertext, cr_ctx->key) != 0) {
         logf("Decrypting Message Error, Maybe Forged!!");
         return -1;
     }

@@ -23,8 +23,10 @@ typedef struct {
  *
  */
 
-#define ORAM_CRYPT_META_SIZE (sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD)
-#define ORAM_CRYPT_DATA_SIZE (ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD)
+#define ORAM_CRYPT_META_SIZE (sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERSIZE)
+#define ORAM_CRYPT_DATA_SIZE (ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERSIZE)
+#define ORAM_CRYPT_META_SIZE_DE (sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD)
+#define ORAM_CRYPT_DATA_SIZE_DE (ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD)
 
 typedef struct {
     unsigned int read_counter;

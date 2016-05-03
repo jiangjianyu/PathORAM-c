@@ -17,7 +17,15 @@ int main (int argc, char* argv[]) {
         client_ctx ctx;
         client_init(&ctx, 100, args);
         unsigned char data[ORAM_BLOCK_SIZE];
-        access(25, ORAM_ACCESS_READ, data, &ctx);
+        int m = 0;
+        for(m = 0;m < 5;m++) {
+            data[0] = m;
+            access(m, ORAM_ACCESS_WRITE, data, &ctx);
+        }
+        for(m = 0;m < 5;m++) {
+            access(m, ORAM_ACCESS_READ, data, &ctx);
+            assert(data[m] == m);
+        }
     }
     return 0;
 }

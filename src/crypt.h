@@ -13,7 +13,8 @@
 
 #define ORAM_CRYPT_KEY_LEN crypto_secretbox_KEYBYTES
 #define ORAM_CRYPT_NONCE_LEN crypto_secretbox_NONCEBYTES
-#define ORAM_CRYPT_OVERHEAD (crypto_secretbox_MACBYTES + ORAM_CRYPT_NONCE_LEN)
+#define ORAM_CRYPT_OVERSIZE crypto_secretbox_MACBYTES + ORAM_CRYPT_NONCE_LEN
+#define ORAM_CRYPT_OVERHEAD crypto_secretbox_MACBYTES
 #define KEY "PATHORAM"
 
 typedef struct {
