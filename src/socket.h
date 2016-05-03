@@ -57,6 +57,7 @@ typedef struct {
 typedef struct {
     int pos;
     unsigned char data[ORAM_CRYPT_DATA_SIZE];
+    unsigned char nonce[ORAM_TREE_DEPTH][ORAM_CRYPT_NONCE_LEN];
 } socket_read_block_r;
 
 typedef struct {

@@ -13,11 +13,19 @@
 typedef struct {
     int address[ORAM_BUCKET_REAL];
     int offset[ORAM_BUCKET_SIZE];
-    crypt_ctx encrypt_par;
 } oram_bucket_metadata;
+
+/*
+ * Structure of encrypted data
+ *
+ * |  NONCE  |  ENCRYPTED MESSAGE  |
+ *
+ *
+ */
 
 #define ORAM_CRYPT_META_SIZE (sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD)
 #define ORAM_CRYPT_DATA_SIZE (ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD)
+
 typedef struct {
     unsigned int read_counter;
     _Bool valid_bits[ORAM_BUCKET_SIZE];

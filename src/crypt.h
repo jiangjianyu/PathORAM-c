@@ -13,7 +13,7 @@
 
 #define ORAM_CRYPT_KEY_LEN crypto_secretbox_KEYBYTES
 #define ORAM_CRYPT_NONCE_LEN crypto_secretbox_NONCEBYTES
-#define ORAM_CRYPT_OVERHEAD crypto_secretbox_MACBYTES
+#define ORAM_CRYPT_OVERHEAD (crypto_secretbox_MACBYTES + ORAM_CRYPT_NONCE_LEN)
 #define KEY "PATHORAM"
 
 typedef struct {
@@ -31,14 +31,12 @@ int get_random(int range);
 
 void get_random_permutation(int len, int permutation[]);
 
-void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len);
+void encrypt_message_old(unsigned char *ciphertext, unsigned char *message, int len, unsigned char nonce[]);
 
-void encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx);
+void encrypt_message(unsigned char *ciphertext, unsigned char *message, int len);
 
-void encrypt_message_th(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx);
+int decrypt_message_old(unsigned char* message, unsigned char *ciphertext, int cipher_len, unsigned char nonce[]);
 
-int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len);
-
-int decrypt_message_gen(unsigned char* message, unsigned char *ciphertext, int cipher_len, crypt_ctx *ctx);
+int decrypt_message(unsigned char* message, unsigned char *ciphertext, int cipher_len);
 
 #endif //PATHORAM_CRYPT_H

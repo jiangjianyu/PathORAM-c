@@ -52,6 +52,7 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
         for (j = 0;j < ORAM_CRYPT_DATA_SIZE;j++) {
             return_block[j] ^= bucket->data[offsets[i]][j];
         }
+        memcpy(read_block_ctx->nonce[i], bucket->data[offsets[i]], ORAM_CRYPT_NONCE_LEN);
         if (pos == 0)
             break;
     }

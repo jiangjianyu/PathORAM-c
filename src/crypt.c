@@ -8,7 +8,8 @@
 
 void gen_crypt_pair(crypt_ctx *ctx) {
     randombytes_buf(ctx->nonce, ORAM_CRYPT_NONCE_LEN);
-    randombytes_buf(ctx->key, ORAM_CRYPT_KEY_LEN);
+//    randombytes_buf(ctx->key, ORAM_CRYPT_KEY_LEN);
+    memcpy(ctx->key, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
 }
 
 void crypt_init() {
@@ -23,31 +24,28 @@ int get_random(int range) {
     return randombytes_uniform(range);
 }
 
-void encrypt_message_default(unsigned char *ciphertext, unsigned char *message, int len) {
-    crypto_secretbox_easy(ciphertext, message, len, cr_ctx->nonce, cr_ctx->key);
+void encrypt_message_old(unsigned char *ciphertext, unsigned char *message, int len, unsigned char nonce[]) {
+    crypto_secretbox_easy(ciphertext + ORAM_CRYPT_NONCE_LEN, message, len, nonce, cr_ctx->key);
 }
 
-void encrypt_message_gen(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx) {
-//    gen_crypt_pair(ctx);
-    sprintf(ctx->key, "oo");
-    sprintf(ctx->nonce, "00");
-    crypto_secretbox_easy(ciphertext, message, len, ctx->nonce, ctx->key);
-}
-
-void encrypt_message_th(unsigned char *ciphertext, unsigned char *message, int len, crypt_ctx *ctx) {
-    crypto_secretbox_easy(ciphertext, message, len, ctx->nonce, ctx->key);
-}
-
-int decrypt_message_default(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
-    if (crypto_secretbox_open_easy(message, ciphertext, cipher_len, cr_ctx->nonce, cr_ctx->key) != 0) {
+int decrypt_message_old(unsigned char* message, unsigned char *ciphertext, int cipher_len, unsigned char nonce[]) {
+    //Nonce in ciphertext has been xor, use real nonce instead.
+    if (crypto_secretbox_open_easy(message, ciphertext + ORAM_CRYPT_NONCE_LEN, cipher_len, nonce, cr_ctx->key) != 0) {
         logf("Decrypting Message Error, Maybe Forged!!");
         return -1;
     }
     return 0;
 }
 
-int decrypt_message_gen(unsigned char* message, unsigned char *ciphertext, int cipher_len, crypt_ctx *ctx) {
-    if (crypto_secretbox_open_easy(message, ciphertext, cipher_len, ctx->nonce, ctx->key) != 0) {
+void encrypt_message(unsigned char *ciphertext, unsigned char *message, int len) {
+    crypt_ctx ctx;
+    gen_crypt_pair(&ctx);
+    crypto_secretbox_easy(ciphertext + ORAM_CRYPT_NONCE_LEN, message, len, ctx.nonce, ctx.key);
+    memcpy(ciphertext, ctx.nonce, ORAM_CRYPT_NONCE_LEN);
+}
+
+int decrypt_message(unsigned char* message, unsigned char *ciphertext, int cipher_len) {
+    if (crypto_secretbox_open_easy(message, ciphertext, cipher_len, ciphertext, cr_ctx->key) != 0) {
         logf("Decrypting Message Error, Maybe Forged!!");
         return -1;
     }
