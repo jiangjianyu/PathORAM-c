@@ -17,10 +17,10 @@ void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
     if (if_bind) {
         r = bind(*sock, (struct sockaddr *) addr, *addrlen);
         if (r < 0)
-            errf("bind error");
+            err("bind error");
         r = listen(*sock, ORAM_SOCKET_BACKLOG);
         if (r < 0)
-            errf("listen error");
+            err("listen error");
     }
     else
         connect(*sock, (struct sockaddr *)addr, *addrlen);

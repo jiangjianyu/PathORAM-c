@@ -74,9 +74,12 @@ void init_server(int size, storage_ctx *sto_ctx) {
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
 void server_run(oram_args_t *args) {
-    ssize_t r = 1;
+    ssize_t r;
     server_ctx *sv_ctx = malloc(sizeof(server_ctx));
     storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
+    unsigned char return_buf[ORAM_SOCKET_RESPONSE_SIZE];
+    socket_ctx *return_ctx = (socket_ctx *)return_buf;
+    socket_response *sock_response = (socket_response *)return_ctx->buf;
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
     sock_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1);
@@ -86,9 +89,6 @@ void server_run(oram_args_t *args) {
     while (sv_ctx->running == 1) {
         bzero(sv_ctx->buff, ORAM_SOCKET_BUFFER);
         bzero(sv_ctx->buff_r, ORAM_SOCKET_BUFFER);
-//        recvfrom(sv_ctx->socket, sv_ctx->buff, ORAM_SOCKET_BUFFER,
-//                 0, (struct sockaddr *)&sv_ctx->client_addr,
-//                 &sv_ctx->addrlen);
         sv_ctx->socket_data = accept(sv_ctx->socket_listen,
                                      (struct sockaddr *) &sv_ctx->client_addr,
                                      &sv_ctx->addrlen);
@@ -111,31 +111,50 @@ void server_run(oram_args_t *args) {
             socket_get_metadata_r *get_metadata_ctx_r = (socket_get_metadata_r *) sock_ctx_r->buf;
             switch (sock_ctx->type) {
                 case SOCKET_READ_BUCKET:
+                    if (r != ORAM_SOCKET_READ_SIZE) {
+                        logf("trans error");
+                        continue;
+                    }
                     read_bucket(read_bucket_ctx->bucket_id,
                                 read_bucket_ctx_r, sto_ctx);
                     sock_ctx_r->type = SOCKET_READ_BUCKET;
-//                    sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE_R,
-//                           0, (struct sockaddr *) &sv_ctx->client_addr, sv_ctx->addrlen);
                     send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE_R, 0);
                     break;
                 case SOCKET_WRITE_BUCKET:
+                    if (r != ORAM_SOCKET_WRITE_SIZE) {
+                        logf("trans error");
+                        continue;
+                    }
+                    else {
+                        return_ctx->type = SOCKET_RESPONSE;
+                        sock_response->status = SOCKET_RESPONSE_SUCCESS;
+                        send(sv_ctx->socket_data, return_buf, ORAM_SOCKET_RESPONSE_SIZE, 0);
+                    }
                     sock_ctx_r->type = SOCKET_WRITE_BUCKET;
                     write_bucket(write_ctx->bucket_id, &write_ctx->bucket, sto_ctx);
                     break;
                 case SOCKET_GET_META:
+                    if (r != ORAM_SOCKET_META_SIZE) {
+                        logf("trans error");
+                        continue;
+                    }
                     sock_ctx_r->type = SOCKET_GET_META;
                     get_metadata(get_metadata_ctx->pos, get_metadata_ctx_r, sto_ctx);
-//                    sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R,
-//                           0, (struct sockaddr *) &sv_ctx->client_addr, sv_ctx->addrlen);
                     send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R, 0);
                     break;
                 case SOCKET_READ_BLOCK:
+                    if (r != ORAM_SOCKET_BLOCK_SIZE) {
+                        logf("trans error");
+                        continue;
+                    }
                     read_block(read_block_ctx->pos, read_block_ctx->offsets, read_block_ctx_r, sto_ctx);
-//                    sendto(sv_ctx->socket, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R,
-//                           0, (struct sockaddr *) &sv_ctx->client_addr, sv_ctx->addrlen);
                     send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R, 0);
                     break;
                 case SOCKET_INIT:
+                    if (r != ORAM_SOCKET_INIT_SIZE) {
+                        logf("trans error");
+                        continue;
+                    }
                     init_server(((socket_init *) sock_ctx->buf)->size, sto_ctx);
                     break;
                 default:

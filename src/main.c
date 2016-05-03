@@ -7,6 +7,7 @@
 #include "server.h"
 
 int main (int argc, char* argv[]) {
+    int f[100];
     oram_args_t *args = malloc(sizeof(oram_args_t));
     args_parse(args, argc, argv);
     crypt_init();
@@ -18,14 +19,16 @@ int main (int argc, char* argv[]) {
         client_init(&ctx, 100, args);
         unsigned char data[ORAM_BLOCK_SIZE];
         int m = 0;
-        for(m = 0;m < 5;m++) {
+        for(m = 0;m < 6;m++) {
             data[0] = m;
             access(m, ORAM_ACCESS_WRITE, data, &ctx);
         }
-        for(m = 0;m < 5;m++) {
+        for(m = 0;m < 6;m++) {
             access(m, ORAM_ACCESS_READ, data, &ctx);
-            assert(data[m] == m);
+            f[m] = data[0];
         }
+        for (m = 0;m < 6;m++)
+            assert(f[m]== m);
     }
     return 0;
 }

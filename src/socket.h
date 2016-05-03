@@ -18,8 +18,14 @@ typedef enum {
     SOCKET_WRITE_BUCKET = 1,
     SOCKET_GET_META = 2,
     SOCKET_READ_BLOCK = 3,
-    SOCKET_INIT = 4
+    SOCKET_INIT = 4,
+    SOCKET_RESPONSE = 5
 } socket_type;
+
+typedef enum {
+    SOCKET_RESPONSE_SUCCESS = 0,
+    SOCKET_RESPONSE_FAIL = 1
+} socket_response_type;
 
 typedef struct {
     socket_type type;
@@ -64,6 +70,11 @@ typedef struct {
     int size;
 } socket_init;
 
+typedef struct {
+    socket_response_type status;
+    char error_msg[20];
+} socket_response;
+
 #define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + sizeof(int)
 #define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + sizeof(int)
 #define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block) + sizeof(int)
@@ -73,6 +84,7 @@ typedef struct {
 #define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + sizeof(int)
 #define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + sizeof(int)
 #define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + sizeof(int)
+#define ORAM_SOCKET_RESPONSE_SIZE sizeof(socket_response) + sizeof(int)
 
 #define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
 
