@@ -14,7 +14,7 @@
 #define ORAM_BUCKET_DUMMY 20
 #define ORAM_BUCKET_SIZE 40
 
-#define ORAM_BLOCK_SIZE 4096
+#define ORAM_BLOCK_SIZE 100
 
 typedef enum {
     ORAM_ACCESS_READ = 0,

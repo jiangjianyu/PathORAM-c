@@ -11,7 +11,7 @@
 
 #include "bucket.h"
 
-#define ORAM_SOCKET_BUFFER 10240
+
 
 typedef enum {
     SOCKET_READ_BUCKET = 0,
@@ -23,7 +23,7 @@ typedef enum {
 
 typedef struct {
     socket_type type;
-    unsigned char buf[ORAM_SOCKET_BUFFER];
+    unsigned char buf[];
 } socket_ctx;
 
 typedef struct {
@@ -36,7 +36,7 @@ typedef struct {
 } socket_read_bucket;
 
 typedef struct {
-    unsigned int bucket_id;
+    int bucket_id;
     oram_bucket bucket;
 } socket_read_bucket_r;
 
@@ -66,12 +66,15 @@ typedef struct {
 #define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + sizeof(int)
 #define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + sizeof(int)
 #define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block) + sizeof(int)
+#define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + sizeof(int)
 
 #define ORAM_SOCKET_READ_SIZE_R sizeof(socket_read_bucket_r) + sizeof(int)
 #define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + sizeof(int)
 #define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + sizeof(int)
 #define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + sizeof(int)
 
+#define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
+
 void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
-                 char *host, int port);
+                 char *host, int port, int if_bind);
 #endif //PATHORAM_SOCKET_H

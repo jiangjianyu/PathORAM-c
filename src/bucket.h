@@ -11,13 +11,13 @@
 #define ORAM_FILE_FORMAT "ORAM_BUCKET_%d.bucket"
 
 typedef struct {
-    unsigned int address[ORAM_BUCKET_REAL];
-    unsigned int offset[ORAM_BUCKET_SIZE];
+    int address[ORAM_BUCKET_REAL];
+    int offset[ORAM_BUCKET_SIZE];
     crypt_ctx encrypt_par;
 } oram_bucket_metadata;
 
-#define ORAM_CRYPT_META_SIZE sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD
-#define ORAM_CRYPT_DATA_SIZE ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD
+#define ORAM_CRYPT_META_SIZE (sizeof(oram_bucket_metadata) + ORAM_CRYPT_OVERHEAD)
+#define ORAM_CRYPT_DATA_SIZE (ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD)
 typedef struct {
     unsigned int read_counter;
     _Bool valid_bits[ORAM_BUCKET_SIZE];
@@ -27,16 +27,12 @@ typedef struct {
 
 #define ORAM_META_SIZE sizeof(oram_bucket_metadata)
 
-
 typedef struct {
     unsigned int read_counter;
     _Bool valid_bits[ORAM_BUCKET_SIZE];
     unsigned char encrypt_metadata[ORAM_CRYPT_META_SIZE];
 } oram_bucket_encrypted_metadata;
 
-
-#define ORAM_CRYPT_META_TOTAL_SIZE sizeof(oram_bucket_encrypted_metadata) + ORAM_CRYPT_OVERHEAD
-#define ORAM_CRYPT_DATA_SIZE ORAM_BLOCK_SIZE + ORAM_CRYPT_OVERHEAD
 
 typedef struct {
     int mem_counter;

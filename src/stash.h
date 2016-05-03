@@ -10,8 +10,8 @@
 #include "bucket.h"
 
 typedef struct stash_block{
-    unsigned int address;
-    unsigned int bucket_id;
+    int address;
+    int bucket_id;
     unsigned char data[ORAM_BLOCK_SIZE];
     struct stash_block *next;
     UT_hash_handle hh;
