@@ -35,8 +35,8 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
     socket_read_bucket_r *sock_read_r = (socket_read_bucket_r *)sock_ctx->buf;
     stash_block *block = malloc(sizeof(stash_block));
     sock_read->bucket_id = bucket_id;
-    sendto(ctx->socket, socket_buf, ORAM_SOCKET_READ_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
-    recvfrom(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0, NULL, NULL);
+    send(ctx->socket, socket_buf, ORAM_SOCKET_READ_SIZE, 0);
+    recv(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0);
     decrypt_message_default((unsigned char *)meta, sock_read_r->bucket.encrypt_metadata, ORAM_CRYPT_META_SIZE);
     for (i = 0;i < ORAM_BUCKET_REAL;i++) {
         //invalid address is set to -1
@@ -73,7 +73,7 @@ void write_bucket_to_server(client_ctx *ctx, int bucket_id,
     sock_write->bucket.read_counter = 0;
     memset(sock_write->bucket.valid_bits, 1, sizeof(sock_write->bucket.valid_bits));
     encrypt_message_default(sock_write->bucket.encrypt_metadata, (unsigned char *)meta, ORAM_META_SIZE);
-    sendto(ctx->socket, socket_buf, SOCKET_WRITE_BUCKET, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
+    send(ctx->socket, socket_buf, SOCKET_WRITE_BUCKET, 0);
 }
 
 int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx) {
@@ -83,8 +83,8 @@ int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypte
     socket_get_metadata_r *sock_meta_r = (socket_get_metadata_r *)sock_ctx->buf;
     sock_ctx->type = SOCKET_GET_META;
     sock_meta->pos = pos;
-    sendto(ctx->socket, socket_buf, ORAM_SOCKET_META_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
-    recvfrom(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0, NULL, NULL);
+    send(ctx->socket, socket_buf, ORAM_SOCKET_META_SIZE, 0);
+    recv(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0);
     for (i = 0, pos_run = pos; ; pos_run >>= 1, ++i) {
         if (decrypt_message_default(metadata[i].encrypt_metadata, sock_meta_r->metadata[i].encrypt_metadata, ORAM_CRYPT_META_SIZE) == -1)
             return -1;
@@ -126,11 +126,9 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
         if (pos_run == 0)
             break;
     }
-    int k;
-    for (k = 0;k < i;k++)
-        logf("off %d", sock_block->offsets[k]);
-    sendto(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
-    recvfrom(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE_R, 0, NULL, NULL);
+    send(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE, 0);
+    recv(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE_R, 0);
+    //TODO Bug exists when i=0 and pos_run = 0
     for (i = 0, pos_run = pos;;pos_run >>= 1, ++i) {
         if (i == found_pos)
             continue;
@@ -193,7 +191,7 @@ void oram_server_init(int bucket_size, client_ctx *ctx) {
     socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
     sock_ctx->type = SOCKET_INIT;
     sock_init_ctx->size = bucket_size;
-    sendto(ctx->socket, buf, ORAM_SOCKET_INIT_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
+    send(ctx->socket, buf, ORAM_SOCKET_INIT_SIZE, 0);
     logf("Init Request to Server");
 }
 
@@ -283,10 +281,9 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
         }
 
         encrypt_message_default(bucket->encrypt_metadata, (unsigned char *)&metadata, ORAM_META_SIZE);
-        logf("%d,%d,%d,%d", bucket->encrypt_metadata[0], bucket->encrypt_metadata[1], bucket->encrypt_metadata[2], bucket->encrypt_metadata[3]);
         sock_ctx->type = SOCKET_WRITE_BUCKET;
         sock_write->bucket_id = i;
-        int r = sendto(ctx->socket, socket_buf, ORAM_SOCKET_WRITE_SIZE, 0, (struct sockaddr *)&ctx->server_addr, ctx->addrlen);
+        int r = send(ctx->socket, socket_buf, ORAM_SOCKET_WRITE_SIZE, 0);
     }
     logf("Client Init");
 }

@@ -75,6 +75,8 @@ typedef struct {
 
 #define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
 
+#define ORAM_SOCKET_BACKLOG 40
+
 void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port, int if_bind);
 #endif //PATHORAM_SOCKET_H

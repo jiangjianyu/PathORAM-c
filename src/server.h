@@ -11,7 +11,8 @@
 #include "socket.h"
 
 typedef struct {
-    int socket;
+    int socket_listen;
+    int socket_data;
     struct sockaddr_in client_addr;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
