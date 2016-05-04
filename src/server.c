@@ -12,7 +12,6 @@ void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_c
     oram_bucket *bucket = get_bucket(bucket_id, sto_ctx);
     memcpy(&read_bucket_ctx->bucket, bucket, sizeof(oram_bucket));
     read_bucket_ctx->bucket_id = bucket_id;
-    logf("REQUEST<-Read Bucket %d", bucket_id);
 }
 
 void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {

@@ -3,8 +3,10 @@
 //
 #include <math.h>
 #include "client.h"
+#include "socket.h"
 
 int get_random_dummy(_Bool valid_bits[], int offsets[]) {
+    //TODO Sometimes not enough
     int i;
     for (i = ORAM_BUCKET_REAL;i < ORAM_BUCKET_SIZE;i++) {
         if (valid_bits[offsets[i]] == 1)
@@ -38,6 +40,7 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
     socket_read_bucket_r *sock_read_r = (socket_read_bucket_r *)sock_ctx->buf;
     stash_block *block;
     sock_read->bucket_id = bucket_id;
+    sock_ctx->type = SOCKET_READ_BUCKET;
     sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_READ_SIZE, ORAM_SOCKET_READ_SIZE_R);
     decrypt_message((unsigned char *)meta, sock_read_r->bucket.encrypt_metadata, ORAM_CRYPT_META_SIZE_DE);
     for (i = 0;i < ORAM_BUCKET_REAL;i++) {
@@ -48,9 +51,9 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
             block->bucket_id = sock_read_r->bucket_id;
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
             add_to_stash(ctx->stash, block);
+            logf("address %d in bucket %d, stash", block->address, block->bucket_id);
         }
     }
-    logf("read bucket %d to stash f", bucket_id);
 }
 
 void write_bucket_to_server(client_ctx *ctx, int bucket_id,
@@ -67,18 +70,19 @@ void write_bucket_to_server(client_ctx *ctx, int bucket_id,
     for (i = 0;i < count;i++) {
         encrypt_message(sock_write->bucket.data[meta->offset[i]], stash_list[i]->data, ORAM_BLOCK_SIZE);
         meta->address[i] = stash_list[i]->address;
+        logf("address %d in bucket %d, server", stash_list[i]->address, bucket_id);
     }
     for (i = count; i < ORAM_BUCKET_SIZE; i++) {
         encrypt_message(sock_write->bucket.data[meta->offset[i]], ctx->blank_data, ORAM_BLOCK_SIZE);
         if (i < ORAM_BUCKET_REAL)
             meta->address[i] = -1;
     }
+    sock_ctx->type = SOCKET_WRITE_BUCKET;
     sock_write->bucket_id = bucket_id;
     sock_write->bucket.read_counter = 0;
     memset(sock_write->bucket.valid_bits, 1, sizeof(sock_write->bucket.valid_bits));
     encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)meta, ORAM_META_SIZE);
     sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
-    logf("write bucket %d to server f", bucket_id);
 }
 //TODO does not use oram_bucket_encrypted_meta
 int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx) {
@@ -171,15 +175,15 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
     data_in = read_path(position, address, read_data, ctx);
     if (data_in == 0) {
         block = find_remove_by_address(ctx->stash, address);
-        logf("From Stash");
+        logf("Access %d from Stash", address);
     }
     else if (data_in == 1) {
         block = malloc(sizeof(stash_block));
-        block->address = (unsigned int) address;
-        logf("From Server");
+        block->address = address;
+        logf("Access %d from Server", address);
     }
     else {
-        logf("access error");
+        logf("Access %d from error", address);
         return;
     }
     if (op == ORAM_ACCESS_READ)
@@ -206,12 +210,12 @@ void oram_server_init(int bucket_size, client_ctx *ctx) {
 }
 
 void evict_path(client_ctx *ctx) {
-    logf("evit path");
+    logf("evict path");
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     int pos_run;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     int pos = gen_reverse_lexicographic(ctx->eviction_g, ctx->oram_size, ctx->oram_tree_height);
-    ctx->eviction_g = (ctx->eviction_g++) % ORAM_LEAF_SIZE;
+    ctx->eviction_g = (ctx->eviction_g + 1) % ORAM_LEAF_SIZE;
     sock_ctx->type = SOCKET_READ_BUCKET;
     for (pos_run = pos; ;pos_run >>= 1) {
         read_bucket_to_stash(ctx, pos_run, socket_buf);
@@ -231,7 +235,8 @@ void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_
     int i, pos_run;
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     for (i = 0, pos_run = pos;; pos_run >>= 1, ++i) {
-        if (metadata[i].read_counter >= ORAM_BUCKET_DUMMY) {
+        //Notice that read counter in client is always one less
+        if (metadata[i].read_counter >= ORAM_BUCKET_DUMMY - 1) {
             logf("early reshuffle %d on pos %d", pos_run, pos_run);
             read_bucket_to_stash(ctx, pos_run, socket_buf);
             write_bucket_to_server(ctx, pos_run, socket_buf);
@@ -279,6 +284,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
         for (j = 0; j < address_position_map[i][0] && j < ORAM_BUCKET_REAL; j++) {
             encrypt_message(bucket->data[metadata.offset[j]], ctx->blank_data, ORAM_BLOCK_SIZE);
             metadata.address[j] = address_position_map[i][j+1];
+            logf("Address %d in bucket %d, server", address_position_map[i][j+1], i);
         }
         //Extra Blocks are written into stash
         for (w = ORAM_BUCKET_REAL;w < address_position_map[i][0];++w) {
@@ -287,6 +293,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
             block->address = address_position_map[i][w+1];
             memcpy(block->data, ctx->blank_data, ORAM_BLOCK_SIZE);
             add_to_stash(ctx->stash, block);
+            logf("Address %d in bucket %d, stash", address_position_map[i][j+1], i);
         }
         for (; j < ORAM_BUCKET_SIZE; j++) {
             encrypt_message(bucket->data[metadata.offset[j]], ctx->blank_data, ORAM_BLOCK_SIZE);
