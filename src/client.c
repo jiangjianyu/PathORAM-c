@@ -2,9 +2,7 @@
 // Created by jyjia on 2016/4/30.
 //
 #include <math.h>
-
 #include "client.h"
-#include "socket.h"
 
 int get_random_dummy(_Bool valid_bits[], int offsets[]) {
     int i;
@@ -40,8 +38,7 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
     socket_read_bucket_r *sock_read_r = (socket_read_bucket_r *)sock_ctx->buf;
     stash_block *block;
     sock_read->bucket_id = bucket_id;
-    send(ctx->socket, socket_buf, ORAM_SOCKET_READ_SIZE, 0);
-    recv(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0);
+    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_READ_SIZE, ORAM_SOCKET_READ_SIZE_R);
     decrypt_message((unsigned char *)meta, sock_read_r->bucket.encrypt_metadata, ORAM_CRYPT_META_SIZE_DE);
     for (i = 0;i < ORAM_BUCKET_REAL;i++) {
         //invalid address is set to -1
@@ -80,8 +77,7 @@ void write_bucket_to_server(client_ctx *ctx, int bucket_id,
     sock_write->bucket.read_counter = 0;
     memset(sock_write->bucket.valid_bits, 1, sizeof(sock_write->bucket.valid_bits));
     encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)meta, ORAM_META_SIZE);
-    sock_ctx->type = SOCKET_WRITE_BUCKET;
-    send(ctx->socket, socket_buf, ORAM_SOCKET_WRITE_SIZE, 0);
+    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
     logf("write bucket %d to server f", bucket_id);
 }
 //TODO does not use oram_bucket_encrypted_meta
@@ -92,10 +88,7 @@ int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypte
     socket_get_metadata_r *sock_meta_r = (socket_get_metadata_r *)sock_ctx->buf;
     sock_ctx->type = SOCKET_GET_META;
     sock_meta->pos = pos;
-    if (send(ctx->socket, socket_buf, ORAM_SOCKET_META_SIZE, 0) <=0 )
-        logf("recv error");
-    if (recv(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0) <= 0 )
-        logf("send error");
+    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE, ORAM_SOCKET_META_SIZE_R);
     for (i = 0, pos_run = pos; ; pos_run >>= 1, ++i) {
         if (decrypt_message(metadata[i].encrypt_metadata,
                             sock_meta_r->metadata[i].encrypt_metadata,
@@ -142,8 +135,7 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
         if (pos_run == 0)
             break;
     }
-    send(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE, 0);
-    recv(ctx->socket, (void *)socket_buf, ORAM_SOCKET_BLOCK_SIZE_R, 0);
+    sock_send_recv(ctx->socket, socket_buf, socket_buf,ORAM_SOCKET_BLOCK_SIZE, ORAM_SOCKET_BLOCK_SIZE_R);
     //TODO Bug exists when i=0 and pos_run = 0
     for (i = 0, pos_run = pos;;pos_run >>= 1, ++i) {
         encrypt_message_old(xor_tem, ctx->blank_data, ORAM_BLOCK_SIZE, sock_block_r->nonce[i]);
@@ -209,7 +201,7 @@ void oram_server_init(int bucket_size, client_ctx *ctx) {
     socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
     sock_ctx->type = SOCKET_INIT;
     sock_init_ctx->size = bucket_size;
-    send(ctx->socket, buf, ORAM_SOCKET_INIT_SIZE, 0);
+    sock_send_recv(ctx->socket, buf, buf, ORAM_SOCKET_INIT_SIZE, ORAM_SOCKET_INIT_SIZE_R);
     logf("Init Request to Server");
 }
 
@@ -306,15 +298,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
         encrypt_message(bucket->encrypt_metadata, (unsigned char *)&metadata, ORAM_META_SIZE);
         sock_ctx->type = SOCKET_WRITE_BUCKET;
         sock_write->bucket_id = i;
-        unsigned char return_msg[ORAM_SOCKET_RESPONSE_SIZE];
-        socket_ctx *socket_response_a = (socket_ctx *)return_msg;
-        socket_response *response = (socket_response *)socket_response_a->buf;
-        response->status = SOCKET_RESPONSE_FAIL;
-//        while(response->status != SOCKET_RESPONSE_SUCCESS) {
-            send(ctx->socket, socket_buf, ORAM_SOCKET_WRITE_SIZE, 0);
-//            recv(ctx->socket, return_msg, ORAM_SOCKET_RESPONSE_SIZE, 0);
-//        }
-
+        sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
     }
     logf("Client Init");
 }

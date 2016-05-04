@@ -25,3 +25,39 @@ void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
     else
         connect(*sock, (struct sockaddr *)addr, *addrlen);
 }
+
+int sock_standard_send(int sock, unsigned char send_msg[], int len) {
+    int r = send(sock, send_msg, len, 0);
+    if (r <= 0)
+        return -1;
+    return 0;
+}
+
+int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
+    int total = 0, r = 0;
+    while (total < sock_len) {
+        r = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
+        total += r;
+    }
+    return 0;
+}
+
+//recv left package
+int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
+    //TODO exit when recv too many times
+    int total = now;
+    while (total < len) {
+        now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
+        total += now;
+        logf("recv one more time");
+    }
+    return 0;
+}
+
+int sock_send_recv(int sock, unsigned char send_msg[], unsigned char recv_msg[],
+                   int send_len, int recv_len) {
+    sock_standard_send(sock, send_msg, send_len);
+    //TODO stop when timeout
+    sock_standard_recv(sock, recv_msg, recv_len);
+    return 0;
+}

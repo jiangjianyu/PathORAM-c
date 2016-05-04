@@ -19,7 +19,6 @@ typedef enum {
     SOCKET_GET_META = 2,
     SOCKET_READ_BLOCK = 3,
     SOCKET_INIT = 4,
-    SOCKET_RESPONSE = 5
 } socket_type;
 
 typedef enum {
@@ -36,6 +35,11 @@ typedef struct {
     int bucket_id;
     oram_bucket bucket;
 } socket_write_bucket;
+
+typedef struct {
+    int bucket_id;
+    socket_response_type type;
+} socket_write_bucket_r;
 
 typedef struct {
     int bucket_id;
@@ -72,19 +76,21 @@ typedef struct {
 
 typedef struct {
     socket_response_type status;
-    char error_msg[20];
-} socket_response;
+} socket_init_r;
 
-#define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + sizeof(int)
-#define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + sizeof(int)
-#define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block) + sizeof(int)
-#define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + sizeof(int)
+#define ORAM_SOCKET_OVERHEAD sizeof(int)
+#define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_BLOCK_SIZE sizeof(socket_read_block) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + ORAM_SOCKET_OVERHEAD
 
-#define ORAM_SOCKET_READ_SIZE_R sizeof(socket_read_bucket_r) + sizeof(int)
-#define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + sizeof(int)
-#define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + sizeof(int)
-#define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + sizeof(int)
-#define ORAM_SOCKET_RESPONSE_SIZE sizeof(socket_response) + sizeof(int)
+#define ORAM_SOCKET_READ_SIZE_R sizeof(socket_read_bucket_r) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_META_SIZE_R sizeof(socket_get_metadata_r) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_BLOCK_SIZE_R sizeof(socket_read_block_r) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_WRITE_SIZE_R sizeof(socket_write_bucket_r) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_INIT_SIZE_R sizeof(socket_init_r) + ORAM_SOCKET_OVERHEAD
+
 
 #define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
 
@@ -92,4 +98,14 @@ typedef struct {
 
 void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port, int if_bind);
+
+int sock_standard_send(int sock, unsigned char send_msg[], int len);
+
+int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len);
+//recv left package
+int sock_recv_add(int sock, unsigned char recv_msg[], int now, int total);
+
+int sock_send_recv(int sock, unsigned char send_msg[], unsigned char recv_msg[],
+                   int send_len, int recv_len);
+
 #endif //PATHORAM_SOCKET_H
