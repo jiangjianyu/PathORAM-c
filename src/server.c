@@ -39,13 +39,13 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
 
 void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
     logf("REQUEST->Read Block, POS:%d buckets", pos);
-    int i = 0, j;
+    int i = 0, j, pos_run = pos;
     oram_bucket *bucket;
     unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
     bzero(return_block, ORAM_CRYPT_DATA_SIZE);
-    for (; ; pos >>= 1, ++i) {
+    for (; ; pos_run >>= 1, ++i) {
         // NO Memcpy here to save time
-        bucket = get_bucket(pos, sto_ctx);
+        bucket = get_bucket(pos_run, sto_ctx);
         bucket->valid_bits[offsets[i]] = 0;
         bucket->read_counter++;
         //TODO convert char to int to decrease xor
@@ -53,7 +53,7 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
             return_block[j] ^= bucket->data[offsets[i]][j];
         }
         memcpy(read_block_ctx->nonce[i], bucket->data[offsets[i]], ORAM_CRYPT_NONCE_LEN);
-        if (pos == 0)
+        if (pos_run == 0)
             break;
     }
     read_block_ctx->pos = pos;

@@ -26,6 +26,8 @@ typedef struct {
     int eviction_g;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
+    //Cache buffer
+    int metadata_counter[ORAM_TREE_DEPTH];
     unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
 
@@ -50,7 +52,7 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
 
 void evict_path(client_ctx *ctx);
 
-void early_reshuffle(int pos, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx);
+void early_reshuffle(int pos, client_ctx *ctx);
 
 void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
 
