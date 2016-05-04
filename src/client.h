@@ -18,6 +18,7 @@
 
 typedef struct {
     int oram_size;
+    int oram_tree_size;
     int *position_map;
     client_stash *stash;
     int round;

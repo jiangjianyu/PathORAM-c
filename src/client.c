@@ -1,7 +1,7 @@
 //
 // Created by jyjia on 2016/4/30.
 //
-
+#include <math.h>
 
 #include "client.h"
 
@@ -15,13 +15,15 @@ int get_random_dummy(_Bool valid_bits[], int offsets[]) {
     return 0;
 }
 
-int gen_reverse_lexicographic(int g) {
-    int reverse_int = 0, i;
-    for (i = 0;i < ORAM_TREE_DEPTH;++i) {
+int gen_reverse_lexicographic(int g, int tree_size, int tree_height) {
+    int reverse_int = g + tree_size >> 1 + 1, i;
+    for (i = 0;i < tree_height;++i) {
         reverse_int <<= 1;
         reverse_int |= g & 1;
         g >>= 1;
     }
+    if (reverse_int > tree_size)
+        reverse_int >>= 1;
     return reverse_int;
 }
 
@@ -253,6 +255,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     oram_bucket *bucket = &sock_write->bucket;
     oram_bucket_metadata metadata;
     ctx->oram_size = size_bucket;
+    ctx->oram_tree_size = log10(ctx->oram_size + 1)/log10(2);
     ctx->position_map = malloc(sizeof(int) * address_size);
     ctx->stash = malloc(sizeof(client_stash));
     ctx->round = 0;
