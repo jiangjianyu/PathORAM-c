@@ -19,11 +19,11 @@ int main (int argc, char* argv[]) {
         client_init(&ctx, 100, args);
         unsigned char data[ORAM_BLOCK_SIZE];
         int m = 0;
-        for(m = 0;m < 100;m++) {
+        for(m = 0;m < 40;m++) {
             data[0] = m;
             access(m, ORAM_ACCESS_WRITE, data, &ctx);
         }
-        for(m = 0;m < 100;m++) {
+        for(m = 0;m < 40;m++) {
             access(m, ORAM_ACCESS_READ, data, &ctx);
             f[m] = data[0];
         }

@@ -18,7 +18,7 @@
 
 typedef struct {
     int oram_size;
-    int oram_tree_size;
+    int oram_tree_height;
     int *position_map;
     client_stash *stash;
     int round;
@@ -31,7 +31,7 @@ typedef struct {
 
 int get_random_dummy(_Bool valid_bits[], int offsets[]);
 
-int gen_reverse_lexicographic(int g);
+int gen_reverse_lexicographic(int g, int tree_size, int tree_height);
 
 void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf);

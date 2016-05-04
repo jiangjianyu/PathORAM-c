@@ -8,6 +8,7 @@
 #include "utlist.h"
 #include "uthash.h"
 #include "bucket.h"
+#include "log.h"
 
 typedef struct stash_block{
     int address;

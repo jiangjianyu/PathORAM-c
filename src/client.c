@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "client.h"
+#include "socket.h"
 
 int get_random_dummy(_Bool valid_bits[], int offsets[]) {
     int i;
@@ -15,14 +16,15 @@ int get_random_dummy(_Bool valid_bits[], int offsets[]) {
     return 0;
 }
 
-int gen_reverse_lexicographic(int g, int tree_size, int tree_height) {
-    int reverse_int = g + tree_size >> 1 + 1, i;
+int gen_reverse_lexicographic(int g, int oram_size, int tree_height) {
+    int i, reverse_int = 0;
+    g += oram_size/2 + 1;
     for (i = 0;i < tree_height;++i) {
         reverse_int <<= 1;
         reverse_int |= g & 1;
         g >>= 1;
     }
-    if (reverse_int > tree_size)
+    if (reverse_int > oram_size)
         reverse_int >>= 1;
     return reverse_int;
 }
@@ -36,15 +38,16 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     socket_read_bucket *sock_read = (socket_read_bucket *)sock_ctx->buf;
     socket_read_bucket_r *sock_read_r = (socket_read_bucket_r *)sock_ctx->buf;
-    stash_block *block = malloc(sizeof(stash_block));
+    stash_block *block;
     sock_read->bucket_id = bucket_id;
     send(ctx->socket, socket_buf, ORAM_SOCKET_READ_SIZE, 0);
     recv(ctx->socket, socket_buf, ORAM_SOCKET_BUFFER, 0);
     decrypt_message((unsigned char *)meta, sock_read_r->bucket.encrypt_metadata, ORAM_CRYPT_META_SIZE_DE);
     for (i = 0;i < ORAM_BUCKET_REAL;i++) {
         //invalid address is set to -1
-        if (sock_read_r->bucket.valid_bits[meta->offset[i]] == 1 && meta->address[meta->offset[i]] >= 0) {
-            block->address = meta->address[meta->offset[i]];
+        if (sock_read_r->bucket.valid_bits[meta->offset[i]] == 1 && meta->address[i] >= 0) {
+            block = malloc(sizeof(stash_block));
+            block->address = meta->address[i];
             block->bucket_id = sock_read_r->bucket_id;
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
             add_to_stash(ctx->stash, block);
@@ -73,9 +76,11 @@ void write_bucket_to_server(client_ctx *ctx, int bucket_id,
         if (i < ORAM_BUCKET_REAL)
             meta->address[i] = -1;
     }
+    sock_write->bucket_id = bucket_id;
     sock_write->bucket.read_counter = 0;
     memset(sock_write->bucket.valid_bits, 1, sizeof(sock_write->bucket.valid_bits));
     encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)meta, ORAM_META_SIZE);
+    sock_ctx->type = SOCKET_WRITE_BUCKET;
     send(ctx->socket, socket_buf, ORAM_SOCKET_WRITE_SIZE, 0);
     logf("write bucket %d to server f", bucket_id);
 }
@@ -213,7 +218,7 @@ void evict_path(client_ctx *ctx) {
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     int pos_run;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
-    int pos = gen_reverse_lexicographic(ctx->eviction_g);
+    int pos = gen_reverse_lexicographic(ctx->eviction_g, ctx->oram_size, ctx->oram_tree_height);
     ctx->eviction_g = (ctx->eviction_g++) % ORAM_LEAF_SIZE;
     sock_ctx->type = SOCKET_READ_BUCKET;
     for (pos_run = pos; ;pos_run >>= 1) {
@@ -255,7 +260,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     oram_bucket *bucket = &sock_write->bucket;
     oram_bucket_metadata metadata;
     ctx->oram_size = size_bucket;
-    ctx->oram_tree_size = log10(ctx->oram_size + 1)/log10(2);
+    ctx->oram_tree_height = log(ctx->oram_size + 1)/log(2);
     ctx->position_map = malloc(sizeof(int) * address_size);
     ctx->stash = malloc(sizeof(client_stash));
     ctx->round = 0;
