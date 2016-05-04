@@ -125,11 +125,11 @@ void server_run(oram_args_t *args) {
                         logf("trans error");
                         continue;
                     }
-                    else {
-                        return_ctx->type = SOCKET_RESPONSE;
-                        sock_response->status = SOCKET_RESPONSE_SUCCESS;
-                        send(sv_ctx->socket_data, return_buf, ORAM_SOCKET_RESPONSE_SIZE, 0);
-                    }
+//                    else {
+//                        return_ctx->type = SOCKET_RESPONSE;
+//                        sock_response->status = SOCKET_RESPONSE_SUCCESS;
+//                        send(sv_ctx->socket_data, return_buf, ORAM_SOCKET_RESPONSE_SIZE, 0);
+//                    }
                     sock_ctx_r->type = SOCKET_WRITE_BUCKET;
                     write_bucket(write_ctx->bucket_id, &write_ctx->bucket, sto_ctx);
                     break;

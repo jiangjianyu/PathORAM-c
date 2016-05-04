@@ -331,7 +331,7 @@ do {                                                                            
 } while (0)
 
 #define LL_APPEND(head,add)                                                                    \
-    LL_APPEND2(head,add,next)
+    LL_APPEND2(head,add,next_l)
 
 #define LL_APPEND2(head,add,next)                                                              \
 do {                                                                                           \
@@ -347,7 +347,7 @@ do {                                                                            
 } while (0)
 
 #define LL_DELETE(head,del)                                                                    \
-    LL_DELETE2(head,del,next)
+    LL_DELETE2(head,del,next_l)
 
 #define LL_DELETE2(head,del,next)                                                              \
 do {                                                                                           \

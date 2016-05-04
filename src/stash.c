@@ -25,10 +25,11 @@ int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_blo
         delete_max = max;
     for (;i < delete_max; i++) {
         now = next;
-        next = now->next;
+        next = now->next_l;
         block_list[i] = now;
         HASH_DEL(stash->address_to_stash, now);
         LL_DELETE(stash->bucket_to_stash[bucket_id], now);
+        stash->bucket_to_stash_count[bucket_id]--;
     }
     return delete_max;
 }
@@ -38,5 +39,6 @@ stash_block* find_remove_by_address(client_stash *stash, int address) {
     HASH_FIND_INT(stash->address_to_stash, &address, return_block);
     HASH_DEL(stash->address_to_stash, return_block);
     LL_DELETE(stash->bucket_to_stash[return_block->bucket_id], return_block);
+    stash->bucket_to_stash_count[return_block->bucket_id]--;
     return return_block;
 }
