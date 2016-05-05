@@ -47,6 +47,7 @@ typedef struct {
 typedef struct {
     int mem_counter;
     int size;
+    int oram_tree_height;
     oram_bucket *bucket_list[ORAM_TOTAL_BUCKET];
 } storage_ctx;
 

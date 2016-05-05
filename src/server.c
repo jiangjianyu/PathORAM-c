@@ -2,9 +2,12 @@
 // Created by jyjia on 2016/4/29.
 //
 
+
+#include <math.h>
 #include "server.h"
 #include "log.h"
 #include "socket.h"
+#include "bucket.h"
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
     //TODO Check Valid Bits To Decrease Bandwidth
@@ -69,6 +72,7 @@ void init_server(int size, storage_ctx *sto_ctx) {
         memset(sto_ctx->bucket_list[i]->valid_bits, 1, sizeof(sto_ctx->bucket_list[i]->valid_bits));
     }
     sto_ctx->size = size;
+    sto_ctx->oram_tree_height = log(size + 1)/log(2);
     sto_ctx->mem_counter = size;
 }
 
@@ -132,13 +136,13 @@ void server_run(oram_args_t *args) {
                         sock_recv_add(sv_ctx->socket_data,sv_ctx->buff, r, ORAM_SOCKET_META_SIZE);
                     sock_ctx_r->type = SOCKET_GET_META;
                     get_metadata(get_metadata_ctx->pos, get_metadata_ctx_r, sto_ctx);
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R);
+                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R(sto_ctx->oram_tree_height));
                     break;
                 case SOCKET_READ_BLOCK:
-                    if (r != ORAM_SOCKET_BLOCK_SIZE)
-                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_BLOCK_SIZE);
+                    if (r != ORAM_SOCKET_BLOCK_SIZE(sto_ctx->oram_tree_height))
+                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_BLOCK_SIZE(sto_ctx->oram_tree_height));
                     read_block(read_block_ctx->pos, read_block_ctx->offsets, read_block_ctx_r, sto_ctx);
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R);
+                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R(sto_ctx->oram_tree_height));
                     break;
                 case SOCKET_INIT:
                     if (r != ORAM_SOCKET_INIT_SIZE)

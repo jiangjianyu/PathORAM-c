@@ -93,7 +93,7 @@ int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypte
     socket_get_metadata_r *sock_meta_r = (socket_get_metadata_r *)sock_ctx->buf;
     sock_ctx->type = SOCKET_GET_META;
     sock_meta->pos = pos;
-    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE, ORAM_SOCKET_META_SIZE_R);
+    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE, ORAM_SOCKET_META_SIZE_R(ctx->oram_tree_height));
     for (i = 0, pos_run = pos; ; pos_run >>= 1, ++i) {
         if (decrypt_message(metadata[i].encrypt_metadata,
                             sock_meta_r->metadata[i].encrypt_metadata,
@@ -141,7 +141,9 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
         if (pos_run == 0)
             break;
     }
-    sock_send_recv(ctx->socket, socket_buf, socket_buf,ORAM_SOCKET_BLOCK_SIZE, ORAM_SOCKET_BLOCK_SIZE_R);
+    sock_send_recv(ctx->socket, socket_buf, socket_buf,
+                   ORAM_SOCKET_BLOCK_SIZE(ctx->oram_tree_height),
+                   ORAM_SOCKET_BLOCK_SIZE_R(ctx->oram_tree_height));
     //TODO Bug exists when i=0 and pos_run = 0
     for (i = 0, pos_run = pos;;pos_run >>= 1, ++i) {
         encrypt_message_old(xor_tem, ctx->blank_data, ORAM_BLOCK_SIZE, sock_block_r->nonce[i]);
