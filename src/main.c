@@ -6,6 +6,7 @@
 #include "args.h"
 #include "client.h"
 #include "server.h"
+#include "daemon.h"
 
 
 static server_ctx sv_ctx;
@@ -24,6 +25,29 @@ int main (int argc, char* argv[]) {
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     if (args->mode == ORAM_MODE_SERVER) {
+        if (args->daemon == ORAM_DAEMON_STOP) {
+            if (daemon_stop(args) != 0) {
+                errf("cannot stop");
+                return -1;
+            }
+            return 0;
+        }
+        else if (args->daemon == ORAM_DAEMON_RESTART) {
+            if (daemon_stop(args) != 0) {
+                errf("cannot stop");
+                return -1;
+            }
+            if (daemon_start(args) != 0) {
+                errf("cannot start");
+                return -1;
+            }
+        }
+        else if (args->daemon == ORAM_DAEMON_START) {
+            if (daemon_start(args) != 0) {
+                errf("cannot start");
+                return -1;
+            }
+        }
         server_run(args, &sv_ctx);
     }
     else {

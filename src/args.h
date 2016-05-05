@@ -7,6 +7,8 @@
 
 #define ORAM_DEFAULT_HOST "127.0.0.1"
 #define ORAM_DEFAULT_PORT 31111
+#define ORAM_PIDFILE "/run/pathoram.pid"
+#define ORAM_LOGFILE "/var/log/pathoram.log"
 
 typedef enum {
     ORAM_MODE_SERVER = 0,
@@ -25,6 +27,8 @@ typedef struct {
     char *host;
     oram_mode mode;
     oram_daemon daemon;
+    char pid_file[100];
+    char log_file[100];
 } oram_args_t;
 
 void args_parse(oram_args_t *args, int argc, char **argv);
