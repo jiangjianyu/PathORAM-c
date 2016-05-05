@@ -4,10 +4,9 @@
 
 
 #include <math.h>
+#include <unistd.h>
 #include "server.h"
 #include "log.h"
-#include "socket.h"
-#include "bucket.h"
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
     //TODO Check Valid Bits To Decrease Bandwidth
@@ -77,9 +76,8 @@ void init_server(int size, storage_ctx *sto_ctx) {
 }
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
-void server_run(oram_args_t *args) {
+void server_run(oram_args_t *args, server_ctx *sv_ctx) {
     ssize_t r;
-    server_ctx *sv_ctx = malloc(sizeof(server_ctx));
     storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
@@ -156,4 +154,9 @@ void server_run(oram_args_t *args) {
             }
         }
     }
+}
+
+void server_stop(server_ctx *sv_ctx) {
+    sv_ctx->running = 0;
+    close(sv_ctx->socket_listen);
 }

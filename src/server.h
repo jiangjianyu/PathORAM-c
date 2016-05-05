@@ -31,6 +31,8 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
 
 void init_server(int size, storage_ctx *sto_ctx);
 
-void server_run(oram_args_t *args);
+void server_run(oram_args_t *args, server_ctx *sv_ctx);
+
+void server_stop(server_ctx *sv_ctx);
 
 #endif //PATHORAM_SERVER_H

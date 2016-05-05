@@ -6,13 +6,24 @@
 #include "client.h"
 #include "server.h"
 
+
+static server_ctx sv_ctx;
+static void sig_handler(int signo) {
+    if (signo == SIGINT)
+        exit(1);  // for gprof
+    else
+        server_stop(&sv_ctx);
+}
+
 int main (int argc, char* argv[]) {
     int f[2000];
     oram_args_t *args = malloc(sizeof(oram_args_t));
     args_parse(args, argc, argv);
     crypt_init();
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
     if (args->mode == ORAM_MODE_SERVER) {
-        server_run(args);
+        server_run(args, &sv_ctx);
     }
     else {
         client_ctx ctx;
