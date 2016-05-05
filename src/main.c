@@ -2,6 +2,7 @@
 // Created by jyjia on 2016/4/29.
 //
 
+#include <signal.h>
 #include "args.h"
 #include "client.h"
 #include "server.h"
