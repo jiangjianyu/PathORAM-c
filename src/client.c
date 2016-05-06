@@ -6,10 +6,12 @@
 
 int get_random_leaf(int pos_node, int oram_size) {
     int random = get_random(oram_size);
-    while (2*pos_node < oram_size) {
+    while (2 * pos_node + 2 < oram_size) {
         pos_node = 2 * pos_node + (random & 0x01) + 1;
         random >>= 1;
     }
+    if (2 * pos_node + 1 < oram_size)
+        pos_node = 2 * pos_node + 1;
     return pos_node;
 }
 
