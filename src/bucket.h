@@ -57,6 +57,8 @@ void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem);
 
 void flush_buckets(storage_ctx *ctx, int remain_in_mem);
 
+oram_bucket* new_bucket(storage_ctx *ctx);
+
 oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx);
 
 

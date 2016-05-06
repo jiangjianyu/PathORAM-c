@@ -41,8 +41,17 @@ void flush_buckets(storage_ctx *ctx, int remain_in_mem) {
     }
 }
 
+oram_bucket* new_bucket(storage_ctx *ctx) {
+    oram_bucket *ne = malloc(sizeof(oram_bucket));
+    ne->read_counter = 0;
+    memset(ne->valid_bits, 1, sizeof(ne->valid_bits));
+    return ne;
+}
+
 oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx) {
-    if (ctx->bucket_list[bucket_id] == 0)
+    if (ctx->bucket_list[bucket_id] == 0) {
         read_bucket_from_file(bucket_id, ctx);
+        ctx->mem_counter++;
+    }
     return ctx->bucket_list[bucket_id];
 }

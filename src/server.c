@@ -65,11 +65,8 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
 void init_server(int size, storage_ctx *sto_ctx) {
     logf("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
-    for (; i <= size; i++) {
-        sto_ctx->bucket_list[i] = malloc(sizeof(oram_bucket));
-        sto_ctx->bucket_list[i]->read_counter = 0;
-        memset(sto_ctx->bucket_list[i]->valid_bits, 1, sizeof(sto_ctx->bucket_list[i]->valid_bits));
-    }
+    for (; i <= size; i++)
+        sto_ctx->bucket_list[i] = new_bucket(sto_ctx);
     sto_ctx->size = size;
     sto_ctx->oram_tree_height = log(size + 1)/log(2);
     sto_ctx->mem_counter = size;

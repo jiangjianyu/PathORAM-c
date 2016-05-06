@@ -31,6 +31,8 @@ typedef struct {
     unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
 
+int get_random_leaf(int pos_node, int oram_size);
+
 int get_random_dummy(_Bool valid_bits[], int offsets[]);
 
 int gen_reverse_lexicographic(int g, int tree_size, int tree_height);

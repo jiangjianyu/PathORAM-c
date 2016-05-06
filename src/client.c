@@ -4,8 +4,16 @@
 #include <math.h>
 #include "client.h"
 
+int get_random_leaf(int pos_node, int oram_size) {
+    int random = get_random(oram_size);
+    while (2*pos_node < oram_size) {
+        pos_node = 2 * pos_node + random & 0x01 + 1;
+        random >>= 1;
+    }
+    return pos_node;
+}
+
 int get_random_dummy(_Bool valid_bits[], int offsets[]) {
-    //TODO Sometimes not enough
     int i;
     for (i = ORAM_BUCKET_REAL;i < ORAM_BUCKET_SIZE;i++) {
         if (valid_bits[offsets[i]] == 1)
@@ -144,7 +152,6 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     sock_send_recv(ctx->socket, socket_buf, socket_buf,
                    ORAM_SOCKET_BLOCK_SIZE(ctx->oram_tree_height),
                    ORAM_SOCKET_BLOCK_SIZE_R(ctx->oram_tree_height));
-    //TODO Bug exists when i=0 and pos_run = 0
     for (i = 0, pos_run = pos;;pos_run >>= 1, ++i) {
         encrypt_message_old(xor_tem, ctx->blank_data, ORAM_BLOCK_SIZE, sock_block_r->nonce[i]);
         if (i != found_pos)
@@ -171,13 +178,13 @@ int read_path(int pos, int address, unsigned char data[], client_ctx *ctx) {
 }
 
 void access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx) {
-    int position_new, position, data_in;
+    int position_new, position, data_in, leaf_pos;
     unsigned char read_data[ORAM_BLOCK_SIZE];
     stash_block *block;
     position_new = get_random(ctx->oram_size);
     position = ctx->position_map[address];
-
-    data_in = read_path(position, address, read_data, ctx);
+    leaf_pos = get_random_leaf(position, ctx->oram_size);
+    data_in = read_path(leaf_pos, address, read_data, ctx);
     if (data_in == 0) {
         block = find_remove_by_address(ctx->stash, address);
         logf("Access %d from Stash", address);
@@ -203,7 +210,7 @@ void access(int address, oram_access_op op, unsigned char data[], client_ctx *ct
     ctx->round = (++ctx->round) % ORAM_RESHUFFLE_RATE;
     if (ctx->round == 0)
         evict_path(ctx);
-    early_reshuffle(position, ctx);
+    early_reshuffle(leaf_pos, ctx);
 }
 
 void oram_server_init(int bucket_size, client_ctx *ctx) {
