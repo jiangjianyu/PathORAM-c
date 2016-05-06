@@ -29,7 +29,7 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
     meta_ctx->pos = pos;
     oram_bucket *bucket;
     int i = 0;
-    for (; ; pos >>= 1, ++i) {
+    for (; ; pos = (pos - 1) >> 1, ++i) {
         bucket = get_bucket(pos, sto_ctx);
         memcpy(meta_ctx->metadata[i].encrypt_metadata, bucket->encrypt_metadata, ORAM_CRYPT_META_SIZE);
         meta_ctx->metadata[i].read_counter = bucket->read_counter;
@@ -45,7 +45,7 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
     oram_bucket *bucket;
     unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
     bzero(return_block, ORAM_CRYPT_DATA_SIZE);
-    for (; ; pos_run >>= 1, ++i) {
+    for (; ; pos_run = (pos_run - 1) >> 1, ++i) {
         // NO Memcpy here to save time
         bucket = get_bucket(pos_run, sto_ctx);
         bucket->valid_bits[offsets[i]] = 0;

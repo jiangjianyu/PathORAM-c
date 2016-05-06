@@ -102,7 +102,7 @@ int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypte
     sock_ctx->type = SOCKET_GET_META;
     sock_meta->pos = pos;
     sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE, ORAM_SOCKET_META_SIZE_R(ctx->oram_tree_height));
-    for (i = 0, pos_run = pos; ; pos_run >>= 1, ++i) {
+    for (i = 0, pos_run = pos; ; pos_run = (pos_run - 1) >> 1, ++i) {
         if (decrypt_message(metadata[i].encrypt_metadata,
                             sock_meta_r->metadata[i].encrypt_metadata,
                             ORAM_CRYPT_META_SIZE_DE) != 0) {
@@ -128,7 +128,7 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     sock_ctx->type = SOCKET_READ_BLOCK;
     sock_block->pos = pos;
     oram_bucket_metadata *de_meta;
-    for (i = 0, found = 0, pos_run = pos; ; pos_run >>= 1, ++i) {
+    for (i = 0, found = 0, pos_run = pos; ; pos_run = (pos_run - 1) >> 1, ++i) {
         de_meta = (oram_bucket_metadata *)&metadata[i].encrypt_metadata;
         //TODO Better Loop
         if (found == 1)
@@ -152,7 +152,7 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     sock_send_recv(ctx->socket, socket_buf, socket_buf,
                    ORAM_SOCKET_BLOCK_SIZE(ctx->oram_tree_height),
                    ORAM_SOCKET_BLOCK_SIZE_R(ctx->oram_tree_height));
-    for (i = 0, pos_run = pos;;pos_run >>= 1, ++i) {
+    for (i = 0, pos_run = pos;;pos_run = (pos_run - 1) >> 1, ++i) {
         encrypt_message_old(xor_tem, ctx->blank_data, ORAM_BLOCK_SIZE, sock_block_r->nonce[i]);
         if (i != found_pos)
             for (j = 0; j < ORAM_CRYPT_DATA_SIZE; j++)
@@ -231,14 +231,14 @@ void evict_path(client_ctx *ctx) {
     int pos = gen_reverse_lexicographic(ctx->eviction_g, ctx->oram_size, ctx->oram_tree_height);
     ctx->eviction_g = (ctx->eviction_g + 1) % ORAM_LEAF_SIZE;
     sock_ctx->type = SOCKET_READ_BUCKET;
-    for (pos_run = pos; ;pos_run >>= 1) {
+    for (pos_run = pos; ;pos_run = (pos_run - 1) >> 1) {
         read_bucket_to_stash(ctx, pos_run, socket_buf);
         if (pos_run == 0)
             break;
     }
 
     sock_ctx->type = SOCKET_WRITE_BUCKET;
-    for (pos_run = pos; ;pos_run >>= 1) {
+    for (pos_run = pos; ;pos_run = (pos_run - 1) >> 1) {
         write_bucket_to_server(ctx, pos_run, socket_buf);
         if (pos_run == 0)
             break;
@@ -248,7 +248,7 @@ void evict_path(client_ctx *ctx) {
 void early_reshuffle(int pos, client_ctx *ctx) {
     int i, pos_run;
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
-    for (i = 0, pos_run = pos;; pos_run >>= 1, ++i) {
+    for (i = 0, pos_run = pos;; pos_run = (pos_run - 1) >> 1, ++i) {
         //Notice that read counter in client is always one less
         if (ctx->metadata_counter[i] >= ORAM_BUCKET_DUMMY - 1) {
             logf("early reshuffle %d on pos %d", pos_run, pos_run);
