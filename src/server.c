@@ -2,22 +2,22 @@
 // Created by jyjia on 2016/4/29.
 //
 
-
 #include <math.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "server.h"
 #include "log.h"
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
     //TODO Check Valid Bits To Decrease Bandwidth
-    logf("REQUEST->Read Bucket %d", bucket_id);
+    log_f("REQUEST->Read Bucket %d", bucket_id);
     oram_bucket *bucket = get_bucket(bucket_id, sto_ctx);
     memcpy(&read_bucket_ctx->bucket, bucket, sizeof(oram_bucket));
     read_bucket_ctx->bucket_id = bucket_id;
 }
 
 void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {
-    logf("REQUEST->Write Bucket %d", bucket_id);
+    log_f("REQUEST->Write Bucket %d", bucket_id);
     oram_bucket *bucket_sto = get_bucket(bucket_id, sto_ctx);
     memcpy(bucket_sto, bucket, sizeof(oram_bucket));
     bucket_sto->read_counter = 0;
@@ -25,7 +25,7 @@ void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {
 }
 
 void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx) {
-    logf("REQUEST->Get Meta, POS:%d", pos);
+    log_f("REQUEST->Get Meta, POS:%d", pos);
     meta_ctx->pos = pos;
     oram_bucket *bucket;
     int i = 0;
@@ -40,7 +40,7 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
 }
 
 void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
-    logf("REQUEST->Read Block, POS:%d", pos);
+    log_f("REQUEST->Read Block, POS:%d", pos);
     int i = 0, j, pos_run = pos;
     oram_bucket *bucket;
     unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
@@ -62,8 +62,8 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
     memcpy(read_block_ctx->data, return_block, ORAM_CRYPT_DATA_SIZE);
 }
 
-void init_server(int size, int max_mem, storage_ctx *sto_ctx) {
-    logf("REQUEST->Init Server, Size:%d buckets", size);
+int server_create(int size, int max_mem, storage_ctx *sto_ctx) {
+    log_f("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
     sto_ctx->size = size;
     sto_ctx->oram_tree_height = log(size + 1) / log(2);
@@ -71,9 +71,11 @@ void init_server(int size, int max_mem, storage_ctx *sto_ctx) {
     sto_ctx->mem_max = max_mem;
     sto_ctx->bucket_list = calloc(size, sizeof(oram_bucket *));
     for (; i <= size; i++) {
-        sto_ctx->bucket_list[i] = new_bucket(sto_ctx);
+        sto_ctx->bucket_list[i] = new_bucket();
+        sto_ctx->mem_counter++;
         evict_to_disk(sto_ctx, i);
     }
+    return 1;
 }
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
@@ -92,19 +94,21 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
         sv_ctx->socket_data = accept(sv_ctx->socket_listen,
                                      (struct sockaddr *) &sv_ctx->client_addr,
                                      &sv_ctx->addrlen);
-        logf("User Connected");
+        log_f("User Connected");
         while (1) {
             r = recv(sv_ctx->socket_data, sv_ctx->buff, ORAM_SOCKET_BUFFER, 0);
             if (r <= 0) {
-                logf("User Disconnected");
+                log_f("User Disconnected");
                 break;
             }
             socket_ctx *sock_ctx = (socket_ctx *) sv_ctx->buff;
             socket_ctx *sock_ctx_r = (socket_ctx *) sv_ctx->buff_r;
+
             socket_read_bucket *read_bucket_ctx = (socket_read_bucket *) sock_ctx->buf;
             socket_write_bucket *write_ctx = (socket_write_bucket *) sock_ctx->buf;
             socket_read_block *read_block_ctx = (socket_read_block *) sock_ctx->buf;
             socket_get_metadata *get_metadata_ctx = (socket_get_metadata *) sock_ctx->buf;
+            socket_init *init_ctx = (socket_init *) sock_ctx->buf;
 
             socket_read_block_r *read_block_ctx_r = (socket_read_block_r *) sock_ctx_r->buf;
             socket_read_bucket_r *read_bucket_ctx_r = (socket_read_bucket_r *) sock_ctx_r->buf;
@@ -146,8 +150,39 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
                 case SOCKET_INIT:
                     if (r != ORAM_SOCKET_INIT_SIZE)
                         sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_INIT_SIZE);
-                    init_server(((socket_init *) sock_ctx->buf)->size, args->max_mem, sto_ctx);
-                    init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
+
+                    if (init_ctx->re_init == 1)
+                        free_server(sto_ctx);
+                    int status;
+                    if (init_ctx->op == SOCKET_OP_CREATE) {
+                        if (sto_ctx->size != 0 && init_ctx->re_init == 0) {
+                            status = 0;
+                            sprintf(init_ctx_r->err_msg, "Already init.");
+                        }
+                        else
+                            status = server_create(init_ctx->size, args->max_mem, sto_ctx);
+                    }
+                    else if (init_ctx->op == SOCKET_OP_LOAD) {
+                        if (sto_ctx->size != 0 && init_ctx->re_init == 0) {
+                            status = 0;
+                            sprintf(init_ctx_r->err_msg, "Already init.");
+                        }
+                        else {
+                            free_server(sto_ctx);
+                            status = server_load(sto_ctx);
+                        }
+                    }
+                    else if (init_ctx->op == SOCKET_OP_SAVE) {
+                        status = server_save(sto_ctx);
+                        sv_ctx->running = 0;
+                    }
+                    else
+                        status = 0;
+
+                    if (status == 1)
+                        init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
+                    else
+                        init_ctx_r->status = SOCKET_RESPONSE_FAIL;
                     sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_INIT_SIZE_R);
                     break;
                 default:
@@ -155,6 +190,34 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
             }
         }
     }
+}
+
+int server_save(storage_ctx *ctx) {
+    log_f("server saved");
+    int fd = open(ORAM_FILE_META_FORMAT, O_WRONLY | O_CREAT, S_IRUSR|S_IWUSR);
+    if (fd < 0) {
+        errf("Store server to file fail.");
+        return 0;
+    }
+    write(fd, ctx, sizeof(storage_ctx));
+    close(fd);
+    flush_buckets(ctx);
+    return 1;
+}
+
+int server_load(storage_ctx *ctx) {
+    log_f("server loaded");
+    int fd = open(ORAM_FILE_META_FORMAT, O_RDONLY);
+    int i;
+    read(fd, ctx, sizeof(storage_ctx));
+    ctx->bucket_list = calloc(ctx->size, sizeof(oram_bucket *));
+    //Do not read too many buckets into memory
+    for (i = 0;i < ctx->mem_max;i++) {
+        ctx->bucket_list[i] = read_bucket_from_file(i);
+        ctx->mem_counter++;
+    }
+    close(fd);
+    return 1;
 }
 
 void server_stop(server_ctx *sv_ctx) {

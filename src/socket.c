@@ -49,7 +49,7 @@ int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
     while (total < len) {
         now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
         if (now == 0 || now == -1) {
-            logf("wrong package");
+            log_f("wrong package");
             return -1;
         }
         total += now;

@@ -26,6 +26,12 @@ typedef enum {
     SOCKET_RESPONSE_FAIL = 1
 } socket_response_type;
 
+typedef enum {
+    SOCKET_OP_CREATE = 0,
+    SOCKET_OP_LOAD = 1,
+    SOCKET_OP_SAVE = 2
+} oram_init_op;
+
 typedef struct {
     socket_type type;
     unsigned char buf[];
@@ -70,12 +76,16 @@ typedef struct {
     unsigned char nonce[ORAM_TREE_DEPTH][ORAM_CRYPT_NONCE_LEN];
 } socket_read_block_r;
 
+//server will delete all server data when re_init is 1(true) and server is inited
 typedef struct {
+    oram_init_op op;
     int size;
+    int re_init;
 } socket_init;
 
 typedef struct {
     socket_response_type status;
+    char err_msg[20];
 } socket_init_r;
 
 #define ORAM_SOCKET_OVERHEAD sizeof(int)

@@ -8,7 +8,8 @@
 #include "crypt.h"
 #include "bucket.h"
 
-#define ORAM_FILE_FORMAT "ORAM_BUCKET_%d.bucket"
+#define ORAM_FILE_BUCKET_FORMAT "ORAM_BUCKET_%d.bucket"
+#define ORAM_FILE_META_FORMAT "ORAM_BUCKET.meta"
 
 typedef struct {
     int address[ORAM_BUCKET_REAL];
@@ -52,15 +53,17 @@ typedef struct {
     oram_bucket **bucket_list;
 } storage_ctx;
 
-void read_bucket_from_file(int bucket_id, storage_ctx *ctx);
+oram_bucket* read_bucket_from_file(int bucket_id);
 
 void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem);
 
-void flush_buckets(storage_ctx *ctx, int remain_in_mem);
+void flush_buckets(storage_ctx *ctx);
 
 void evict_to_disk(storage_ctx *ctx, int but);
 
-oram_bucket* new_bucket(storage_ctx *ctx);
+void free_server(storage_ctx *ctx);
+
+oram_bucket* new_bucket();
 
 oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx);
 

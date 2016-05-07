@@ -27,7 +27,7 @@ extern int verbose_mode;
     }                                                                 \
 } while (0)
 
-#define logf(s...) __LOG(stdout, 0, s)
+#define log_f(s...) __LOG(stdout, 0, s)
 #define errf(s...) __LOG(stderr, 1, s)
 #define err(s) perror_timestamp(s, __FILE__, __LINE__)
 

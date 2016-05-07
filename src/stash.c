@@ -7,13 +7,14 @@ int init_stash(client_stash *stash, int size) {
     stash->address_to_stash = NULL;
     stash->bucket_to_stash = calloc(size, sizeof(stash_block *));
     stash->bucket_to_stash_count = calloc(size, sizeof(int));
+    return 1;
 }
 
 void add_to_stash(client_stash *stash, stash_block *block) {
     stash_block *ne;
     HASH_FIND_INT(stash->address_to_stash, &block->address, ne);
     if (ne != NULL)
-        logf("already %d", block->address);
+        log_f("already %d", block->address);
     HASH_ADD_INT(stash->address_to_stash, address, block);
     LL_APPEND(stash->bucket_to_stash[block->bucket_id], block);
     stash->bucket_to_stash_count[block->bucket_id]++;

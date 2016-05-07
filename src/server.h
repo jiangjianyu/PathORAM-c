@@ -29,10 +29,14 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
 
 void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx);
 
-void init_server(int size, int max_mem, storage_ctx *sto_ctx);
+int server_create(int size, int max_mem, storage_ctx *sto_ctx);
 
 void server_run(oram_args_t *args, server_ctx *sv_ctx);
 
 void server_stop(server_ctx *sv_ctx);
+
+int server_load(storage_ctx *ctx);
+
+int server_save(storage_ctx *ctx);
 
 #endif //PATHORAM_SERVER_H

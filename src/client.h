@@ -12,9 +12,9 @@
 #include "crypt.h"
 #include "socket.h"
 #include "args.h"
-#include "log.h"
 
 #define ORAM_RESHUFFLE_RATE 20
+#define ORAM_FILE_CLIENT_FORMAT "ORAM_CLIENT.meta"
 
 typedef struct {
     int oram_size;
@@ -22,14 +22,19 @@ typedef struct {
     int *position_map;
     client_stash *stash;
     int round;
-    int socket;
     int eviction_g;
+} client_storage_ctx;
+
+typedef struct {
+    int socket;
+    client_storage_ctx *client_storage;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
-    //Cache buffer
+    //Share buffer for early eviction
     int metadata_counter[ORAM_TREE_DEPTH];
     unsigned char blank_data[ORAM_BLOCK_SIZE];
 } client_ctx;
+
 
 int get_random_leaf(int pos_node, int oram_size);
 
@@ -50,14 +55,20 @@ int read_block_helper(int pos, int address,unsigned char socket_buf[], oram_buck
 
 int read_path(int pos, int address, unsigned char data[], client_ctx *ctx);
 
-void access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx);
+void oblivious_access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx);
 
 void evict_path(client_ctx *ctx);
 
 void early_reshuffle(int pos, client_ctx *ctx);
 
-void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args);
+void client_init(client_ctx *ctx, oram_args_t *args);
 
-void oram_server_init(int bucket_size, client_ctx *ctx);
+void client_create(client_ctx *ctx, int size_bucket);
+
+int client_load(client_ctx *ctx);
+
+void client_save(client_ctx *ctx);
+
+void oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op);
 
 #endif //PATHORAM_CLIENT_H

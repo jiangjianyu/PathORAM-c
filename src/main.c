@@ -52,19 +52,22 @@ int main (int argc, char* argv[]) {
     }
     else {
         client_ctx ctx;
-        client_init(&ctx, 6000, args);
+        client_init(&ctx, args);
+//        client_create(&ctx, 6000);
+        client_load(&ctx);
         unsigned char data[ORAM_BLOCK_SIZE];
-        int m = 1;
+        int m;
         for(m = 0;m < 100;m++) {
             data[0] = m;
-            access(m, ORAM_ACCESS_WRITE, data, &ctx);
+            oblivious_access(m, ORAM_ACCESS_WRITE, data, &ctx);
         }
         for(m = 0;m < 100;m++) {
-            access(m, ORAM_ACCESS_READ, data, &ctx);
+            oblivious_access(m, ORAM_ACCESS_READ, data, &ctx);
             f[m] = data[0];
         }
         for (m = 0;m < 100;m++)
             assert(f[m] == m);
+        client_save(&ctx);
     }
     return 0;
 }
