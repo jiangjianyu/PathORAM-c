@@ -46,9 +46,10 @@ typedef struct {
 
 typedef struct {
     int mem_counter;
+    int mem_max;
     int size;
     int oram_tree_height;
-    oram_bucket *bucket_list[ORAM_TOTAL_BUCKET];
+    oram_bucket **bucket_list;
 } storage_ctx;
 
 void read_bucket_from_file(int bucket_id, storage_ctx *ctx);
@@ -56,6 +57,8 @@ void read_bucket_from_file(int bucket_id, storage_ctx *ctx);
 void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem);
 
 void flush_buckets(storage_ctx *ctx, int remain_in_mem);
+
+void evict_to_disk(storage_ctx *ctx, int but);
 
 oram_bucket* new_bucket(storage_ctx *ctx);
 

@@ -3,10 +3,10 @@
 //
 
 #include "stash.h"
-int init_stash(client_stash *stash) {
+int init_stash(client_stash *stash, int size) {
     stash->address_to_stash = NULL;
-    bzero(stash->bucket_to_stash, sizeof(stash->bucket_to_stash));
-    bzero(stash->bucket_to_stash_count, sizeof(stash->bucket_to_stash_count));
+    stash->bucket_to_stash = calloc(size, sizeof(stash_block *));
+    stash->bucket_to_stash_count = calloc(size, sizeof(int));
 }
 
 void add_to_stash(client_stash *stash, stash_block *block) {

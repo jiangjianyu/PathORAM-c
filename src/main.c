@@ -52,7 +52,7 @@ int main (int argc, char* argv[]) {
     }
     else {
         client_ctx ctx;
-        client_init(&ctx, 50, args);
+        client_init(&ctx, 6000, args);
         unsigned char data[ORAM_BLOCK_SIZE];
         int m = 1;
         for(m = 0;m < 100;m++) {

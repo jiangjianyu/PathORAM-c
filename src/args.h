@@ -23,6 +23,7 @@ typedef enum {
 } oram_daemon;
 
 typedef struct {
+    int max_mem;
     int port;
     char *host;
     oram_mode mode;

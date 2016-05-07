@@ -5,7 +5,6 @@
 #ifndef PATHORAM_ORAM_H
 #define PATHORAM_ORAM_H
 
-#define ORAM_TOTAL_BUCKET 100000
 #define ORAM_TREE_DEPTH 20
 #define ORAM_LEAF_SIZE 1024
 
@@ -13,7 +12,7 @@
 #define ORAM_BUCKET_DUMMY 20
 #define ORAM_BUCKET_SIZE 40
 
-#define ORAM_BLOCK_SIZE 1000
+#define ORAM_BLOCK_SIZE 4096
 
 typedef enum {
     ORAM_ACCESS_READ = 0,

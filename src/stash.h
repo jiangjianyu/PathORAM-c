@@ -20,12 +20,12 @@ typedef struct stash_block{
 
 //two hash table, indexed by bucket_id or address
 typedef struct {
-    stash_block *bucket_to_stash[ORAM_TOTAL_BUCKET];
-    int bucket_to_stash_count[ORAM_TOTAL_BUCKET];
+    stash_block **bucket_to_stash;
+    int *bucket_to_stash_count;
     stash_block *address_to_stash;
 } client_stash;
 
-int init_stash(client_stash *stash);
+int init_stash(client_stash *stash, int size);
 
 void add_to_stash(client_stash *stash ,stash_block *block);
 

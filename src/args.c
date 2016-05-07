@@ -13,9 +13,10 @@ static const char *help_message =
 "\n"
 "  -m [server|client]    select running mode, client mode is only for testing\n"
 "  -h, --help            show this help message and exit\n"
-"  -s start/stop/restart control pathoram process. if omitted, will run\n"
+"  -d start/stop/restart control pathoram process. if omitted, will run\n"
 "                        in foreground, only work in server\n"
 "  -c config_file        path to config file\n"
+"  -s number of buckets that could be contain in memory, only for server"
 "  -v                    verbose logging\n"
 "  -b address            listen address\n"
 "  -p port               listen port\n"
@@ -31,6 +32,7 @@ static void print_help() {
 void load_default_args(oram_args_t *args) {
     args->host = ORAM_DEFAULT_HOST;
     args->port = ORAM_DEFAULT_PORT;
+    args->max_mem = 5000;
     strcpy(args->pid_file, ORAM_PIDFILE);
     strcpy(args->log_file, ORAM_LOGFILE);
 }
@@ -39,13 +41,13 @@ void args_parse(oram_args_t *args, int argc, char **argv) {
     int ch;
     bzero(args, sizeof(oram_args_t));
     load_default_args(args);
-    while ((ch = getopt(argc, argv, "b:s:p:vm:hf:")) != -1) {
+    while ((ch = getopt(argc, argv, "b:s:p:vm:hf:d:")) != -1) {
         switch (ch) {
             case 'b': args->host = optarg;
                 break;
             case 'p': args->port = atoi(optarg);
                 break;
-            case 's':
+            case 'd':
                 if (strcmp("start", optarg) == 0)
                     args->daemon = ORAM_DAEMON_START;
                 else if(strcmp("stop", optarg) == 0)
@@ -67,6 +69,8 @@ void args_parse(oram_args_t *args, int argc, char **argv) {
             case 'h': print_help();
                 break;
             case 'f': strcpy(args->pid_file, optarg);
+                break;
+            case 's': args->max_mem = atoi(optarg);
                 break;
             default:
                 errf("unknown command %c", ch);

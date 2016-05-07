@@ -47,14 +47,12 @@ int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
     //TODO exit when recv too many times
     int total = now;
     while (total < len) {
-        logf("recv now %d, total %d", now, len);
         now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
-        if (now == 0) {
+        if (now == 0 || now == -1) {
             logf("wrong package");
             return -1;
         }
         total += now;
-        logf("recv one more time");
     }
     return 0;
 }

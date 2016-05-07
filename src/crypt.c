@@ -24,6 +24,13 @@ int get_random(int range) {
     return randombytes_uniform(range);
 }
 
+int get_random_but(int range, int but) {
+    int random = randombytes_uniform(range);
+    if (random == but)
+        return random + 1;
+    return random;
+}
+
 void encrypt_message_old(unsigned char *ciphertext, unsigned char *message, int len, unsigned char nonce[]) {
     crypto_secretbox_easy(ciphertext + ORAM_CRYPT_NONCE_LEN, message, len, nonce, cr_ctx->key);
 }

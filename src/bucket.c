@@ -29,8 +29,10 @@ void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
     if (!remain_in_mem) {
         free(ctx->bucket_list[bucket_id]);
         ctx->bucket_list[bucket_id] = 0;
+        ctx->mem_counter--;
     }
     close(fd);
+    logf("Write Bucket %d to file", bucket_id);
 }
 
 void flush_buckets(storage_ctx *ctx, int remain_in_mem) {
@@ -41,10 +43,20 @@ void flush_buckets(storage_ctx *ctx, int remain_in_mem) {
     }
 }
 
+void evict_to_disk(storage_ctx *ctx, int but) {
+    while (ctx->mem_counter >= ctx->mem_max) {
+        int evict_num = get_random_but(ctx->size, but);
+        if (ctx->bucket_list[evict_num] == 0)
+            continue;
+        write_bucket_to_file(evict_num, ctx, 0);
+    }
+}
+
 oram_bucket* new_bucket(storage_ctx *ctx) {
     oram_bucket *ne = malloc(sizeof(oram_bucket));
     ne->read_counter = 0;
     memset(ne->valid_bits, 1, sizeof(ne->valid_bits));
+    ctx->mem_counter++;
     return ne;
 }
 

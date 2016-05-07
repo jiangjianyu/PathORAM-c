@@ -30,6 +30,8 @@ void gen_crypt_pair(crypt_ctx *ctx);
 
 int get_random(int range);
 
+int get_random_but(int range, int but);
+
 void get_random_permutation(int len, int permutation[]);
 
 void encrypt_message_old(unsigned char *ciphertext, unsigned char *message, int len, unsigned char nonce[]);

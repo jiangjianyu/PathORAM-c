@@ -40,7 +40,7 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
 }
 
 void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
-    logf("REQUEST->Read Block, POS:%d buckets", pos);
+    logf("REQUEST->Read Block, POS:%d", pos);
     int i = 0, j, pos_run = pos;
     oram_bucket *bucket;
     unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
@@ -62,14 +62,18 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
     memcpy(read_block_ctx->data, return_block, ORAM_CRYPT_DATA_SIZE);
 }
 
-void init_server(int size, storage_ctx *sto_ctx) {
+void init_server(int size, int max_mem, storage_ctx *sto_ctx) {
     logf("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
-    for (; i <= size; i++)
-        sto_ctx->bucket_list[i] = new_bucket(sto_ctx);
     sto_ctx->size = size;
-    sto_ctx->oram_tree_height = log(size + 1)/log(2);
-    sto_ctx->mem_counter = size;
+    sto_ctx->oram_tree_height = log(size + 1) / log(2);
+    sto_ctx->mem_counter = 0;
+    sto_ctx->mem_max = max_mem;
+    sto_ctx->bucket_list = calloc(size, sizeof(oram_bucket *));
+    for (; i <= size; i++) {
+        sto_ctx->bucket_list[i] = new_bucket(sto_ctx);
+        evict_to_disk(sto_ctx, i);
+    }
 }
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
@@ -142,7 +146,7 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
                 case SOCKET_INIT:
                     if (r != ORAM_SOCKET_INIT_SIZE)
                         sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_INIT_SIZE);
-                    init_server(((socket_init *) sock_ctx->buf)->size, sto_ctx);
+                    init_server(((socket_init *) sock_ctx->buf)->size, args->max_mem, sto_ctx);
                     init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
                     sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_INIT_SIZE_R);
                     break;

@@ -280,7 +280,7 @@ void client_init(client_ctx *ctx, int size_bucket, oram_args_t *args) {
     ctx->eviction_g = 0;
     stash_block *block;
     bzero(ctx->stash, sizeof(client_stash));
-    init_stash(ctx->stash);
+    init_stash(ctx->stash, size_bucket);
     sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, "127.0.0.1", args->port, 0);
 
     //assign block to random bucket
