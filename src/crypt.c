@@ -2,6 +2,8 @@
 // Created by jyjia on 2016/4/29.
 //
 
+#include <fcntl.h>
+#include <unistd.h>
 #include "crypt.h"
 #include "log.h"
 
@@ -14,10 +16,25 @@ void gen_crypt_pair(crypt_ctx *ctx) {
 void crypt_init(unsigned char key[]) {
     cr_ctx = malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
-    if (key == NULL)
-        randombytes_buf(cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+    if (key == NULL) {
+        int r = open(ORAM_KEY_FILE, O_RDONLY);
+        if (r < 0)
+            randombytes_buf(cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+        else {
+            log_f("loading key from file");
+            read(r, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+            close(r);
+        }
+    }
     else
         memcpy(cr_ctx->key, key, ORAM_CRYPT_KEY_LEN);
+    int fd = open(ORAM_KEY_FILE, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR);
+    if (fd < 0)
+        log_f("writing key to file error");
+    else {
+        write(fd, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+        close(fd);
+    }
     randombytes_buf(cr_ctx->nonce, ORAM_CRYPT_NONCE_LEN);
     log_f("Cryptographic Key Init");
 }

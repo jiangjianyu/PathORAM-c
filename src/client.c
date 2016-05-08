@@ -284,7 +284,7 @@ int client_init(client_ctx *ctx, oram_client_args *args) {
     if (args->load_file == NULL)
         args->load_file = ORAM_FILE_CLIENT_FORMAT;
     if (args->save_file == NULL)
-        args->load_file = ORAM_FILE_CLIENT_FORMAT;
+        args->save_file = ORAM_FILE_CLIENT_FORMAT;
     if (args->host == NULL)
         args->host = ORAM_DEFAULT_HOST;
     if (args->port == 0)

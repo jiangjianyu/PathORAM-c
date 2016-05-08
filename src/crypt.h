@@ -15,8 +15,8 @@
 #define ORAM_CRYPT_NONCE_LEN crypto_secretbox_NONCEBYTES
 #define ORAM_CRYPT_OVERSIZE crypto_secretbox_MACBYTES + ORAM_CRYPT_NONCE_LEN
 #define ORAM_CRYPT_OVERHEAD crypto_secretbox_MACBYTES
-#define KEY "PATHORAM"
 #define ORAM_STORAGE_KEY_LEN 10
+#define ORAM_KEY_FILE "ORAM_CLIENT.key"
 
 typedef struct {
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
