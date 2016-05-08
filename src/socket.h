@@ -81,7 +81,7 @@ typedef struct {
 typedef struct {
     oram_init_op op;
     int size;
-    int re_init;
+    char storage_key[ORAM_STORAGE_KEY_LEN];
 } socket_init;
 
 typedef struct {

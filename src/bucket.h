@@ -50,6 +50,7 @@ typedef struct {
     int mem_max;
     int size;
     int oram_tree_height;
+    char storage_key[ORAM_STORAGE_KEY_LEN + 1];
     oram_bucket **bucket_list;
 } storage_ctx;
 

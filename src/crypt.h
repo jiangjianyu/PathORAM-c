@@ -16,6 +16,7 @@
 #define ORAM_CRYPT_OVERSIZE crypto_secretbox_MACBYTES + ORAM_CRYPT_NONCE_LEN
 #define ORAM_CRYPT_OVERHEAD crypto_secretbox_MACBYTES
 #define KEY "PATHORAM"
+#define ORAM_STORAGE_KEY_LEN 10
 
 typedef struct {
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -24,9 +25,11 @@ typedef struct {
 
 crypt_ctx *cr_ctx;
 
-void crypt_init();
+void crypt_init(unsigned char key[]);
 
 void gen_crypt_pair(crypt_ctx *ctx);
+
+void get_random_key(char *key);
 
 int get_random(int range);
 

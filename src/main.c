@@ -21,7 +21,6 @@ int main (int argc, char* argv[]) {
     int f[2000];
     oram_args_t *args = malloc(sizeof(oram_args_t));
     args_parse(args, argc, argv);
-    crypt_init();
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     if (args->mode == ORAM_MODE_SERVER) {
@@ -52,11 +51,14 @@ int main (int argc, char* argv[]) {
     }
     else {
         client_ctx ctx;
-        if (client_init(&ctx, args) < 0)
+        oram_client_args ar;
+        ar.verbose = 1;
+        if (client_init(&ctx, &ar) < 0)
             return -1;
         if (client_create(&ctx, 6000, 1) < 0)
             return -1;
-//        client_load(&ctx);
+//        if (client_load(&ctx, 1) < 0)
+//            return -1;
         unsigned char data[ORAM_BLOCK_SIZE];
         int m;
         for(m = 0;m < 100;m++) {
@@ -69,7 +71,7 @@ int main (int argc, char* argv[]) {
         }
         for (m = 0;m < 100;m++)
             assert(f[m] == m);
-//        client_save(&ctx);
+        client_save(&ctx, 0);
     }
     return 0;
 }

@@ -11,16 +11,23 @@ void gen_crypt_pair(crypt_ctx *ctx) {
     memcpy(ctx->key, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
 }
 
-void crypt_init() {
+void crypt_init(unsigned char key[]) {
     cr_ctx = malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
-    sprintf(cr_ctx->key, KEY);
+    if (key == NULL)
+        randombytes_buf(cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+    else
+        memcpy(cr_ctx->key, key, ORAM_CRYPT_KEY_LEN);
     randombytes_buf(cr_ctx->nonce, ORAM_CRYPT_NONCE_LEN);
     log_f("Cryptographic Key Init");
 }
 
 int get_random(int range) {
     return randombytes_uniform(range);
+}
+
+void get_random_key(char *key) {
+    randombytes_buf(key, ORAM_STORAGE_KEY_LEN);
 }
 
 int get_random_but(int range, int but) {

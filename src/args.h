@@ -5,6 +5,8 @@
 #ifndef PATHORAM_ARGS_H
 #define PATHORAM_ARGS_H
 
+#include "crypt.h"
+
 #define ORAM_DEFAULT_HOST "127.0.0.1"
 #define ORAM_DEFAULT_PORT 31111
 #define ORAM_PIDFILE "/run/pathoram.pid"
@@ -31,6 +33,15 @@ typedef struct {
     char pid_file[100];
     char log_file[100];
 } oram_args_t;
+
+typedef struct {
+    char *host;
+    int port;
+    char *load_file;
+    char *save_file;
+    unsigned char key[ORAM_CRYPT_KEY_LEN];
+    int verbose;
+} oram_client_args;
 
 void args_parse(oram_args_t *args, int argc, char **argv);
 

@@ -23,6 +23,7 @@ typedef struct {
     client_stash *stash;
     int round;
     int eviction_g;
+    char storage_key[ORAM_STORAGE_KEY_LEN + 1];
 } client_storage_ctx;
 
 typedef struct {
@@ -30,6 +31,7 @@ typedef struct {
     client_storage_ctx *client_storage;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
+    oram_client_args *args;
     //Share buffer for early eviction
     int metadata_counter[ORAM_TREE_DEPTH];
     unsigned char blank_data[ORAM_BLOCK_SIZE];
@@ -55,19 +57,19 @@ int read_block_helper(int pos, int address,unsigned char socket_buf[], oram_buck
 
 int read_path(int pos, int address, unsigned char data[], client_ctx *ctx);
 
-void oblivious_access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx);
+int oblivious_access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx);
 
 void evict_path(client_ctx *ctx);
 
 void early_reshuffle(int pos, client_ctx *ctx);
 
-int client_init(client_ctx *ctx, oram_args_t *args);
+int client_init(client_ctx *ctx, oram_client_args *args);
 
 int client_create(client_ctx *ctx, int size_bucket, int re_init);
 
-int client_load(client_ctx *ctx);
+int client_load(client_ctx *ctx, int re_init);
 
-void client_save(client_ctx *ctx);
+void client_save(client_ctx *ctx, int exit);
 
 int oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op);
 
