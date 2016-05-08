@@ -5,25 +5,31 @@
 #include "socket.h"
 #include "log.h"
 
-void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
+int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                char *host, int port, int if_bind) {
     int r = 0;
     inet_aton(host, &addr->sin_addr);
     addr->sin_port = htons(port);
     addr->sin_family = AF_INET;
-//    *sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     *sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     *addrlen = sizeof(struct sockaddr_in);
     if (if_bind) {
-        r = bind(*sock, (struct sockaddr *) addr, *addrlen);
-        if (r < 0)
+        if (bind(*sock, (struct sockaddr *) addr, *addrlen) < 0) {
             err("bind error");
-        r = listen(*sock, ORAM_SOCKET_BACKLOG);
-        if (r < 0)
+            return -1;
+        }
+        if (listen(*sock, ORAM_SOCKET_BACKLOG) < 0) {
             err("listen error");
+            return -1;
+        }
     }
-    else
-        connect(*sock, (struct sockaddr *)addr, *addrlen);
+    else {
+        if (connect(*sock, (struct sockaddr *) addr, *addrlen) < 0) {
+            err("connect error");
+            return -1;
+        }
+    }
+    return 0;
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {

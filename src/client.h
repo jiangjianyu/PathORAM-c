@@ -61,14 +61,14 @@ void evict_path(client_ctx *ctx);
 
 void early_reshuffle(int pos, client_ctx *ctx);
 
-void client_init(client_ctx *ctx, oram_args_t *args);
+int client_init(client_ctx *ctx, oram_args_t *args);
 
-void client_create(client_ctx *ctx, int size_bucket);
+int client_create(client_ctx *ctx, int size_bucket, int re_init);
 
 int client_load(client_ctx *ctx);
 
 void client_save(client_ctx *ctx);
 
-void oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op);
+int oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op);
 
 #endif //PATHORAM_CLIENT_H

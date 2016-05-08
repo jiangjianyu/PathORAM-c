@@ -29,7 +29,8 @@ typedef enum {
 typedef enum {
     SOCKET_OP_CREATE = 0,
     SOCKET_OP_LOAD = 1,
-    SOCKET_OP_SAVE = 2
+    SOCKET_OP_SAVE = 2,
+    SOCKET_OP_REINIT = 4
 } oram_init_op;
 
 typedef struct {
@@ -106,7 +107,7 @@ typedef struct {
 
 #define ORAM_SOCKET_BACKLOG 40
 
-void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
+int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port, int if_bind);
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len);

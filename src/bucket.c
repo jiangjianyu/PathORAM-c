@@ -45,7 +45,7 @@ void flush_buckets(storage_ctx *ctx) {
 
 void free_server(storage_ctx *ctx) {
     int i;
-    if (ctx->size != 0)
+    if (ctx->size == 0)
         return;
     for (i = 0;i < ctx->size; ++i)
         if (ctx->bucket_list[i] != NULL)
@@ -76,6 +76,7 @@ oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx) {
     if (ctx->bucket_list[bucket_id] == 0) {
         ctx->bucket_list[bucket_id] = read_bucket_from_file(bucket_id);
         ctx->mem_counter++;
+        evict_to_disk(ctx, bucket_id);
     }
     return ctx->bucket_list[bucket_id];
 }

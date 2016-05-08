@@ -13,8 +13,11 @@ int init_stash(client_stash *stash, int size) {
 void add_to_stash(client_stash *stash, stash_block *block) {
     stash_block *ne;
     HASH_FIND_INT(stash->address_to_stash, &block->address, ne);
-    if (ne != NULL)
+    //Does not add into hash table when exists
+    if (ne != NULL) {
         log_f("already %d", block->address);
+        return;
+    }
     HASH_ADD_INT(stash->address_to_stash, address, block);
     LL_APPEND(stash->bucket_to_stash[block->bucket_id], block);
     stash->bucket_to_stash_count[block->bucket_id]++;

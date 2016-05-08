@@ -52,9 +52,11 @@ int main (int argc, char* argv[]) {
     }
     else {
         client_ctx ctx;
-        client_init(&ctx, args);
-//        client_create(&ctx, 6000);
-        client_load(&ctx);
+        if (client_init(&ctx, args) < 0)
+            return -1;
+        if (client_create(&ctx, 6000, 1) < 0)
+            return -1;
+//        client_load(&ctx);
         unsigned char data[ORAM_BLOCK_SIZE];
         int m;
         for(m = 0;m < 100;m++) {
@@ -67,7 +69,7 @@ int main (int argc, char* argv[]) {
         }
         for (m = 0;m < 100;m++)
             assert(f[m] == m);
-        client_save(&ctx);
+//        client_save(&ctx);
     }
     return 0;
 }

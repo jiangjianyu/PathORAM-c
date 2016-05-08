@@ -219,15 +219,24 @@ void oblivious_access(int address, oram_access_op op, unsigned char data[], clie
     early_reshuffle(leaf_pos, ctx);
 }
 
-void oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op) {
+int oram_server_init(int bucket_size, client_ctx *ctx, oram_init_op op) {
     unsigned char buf[4096];
     socket_ctx *sock_ctx = (socket_ctx *)buf;
     socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
+    socket_init_r *sock_init_ctx_r = (socket_init_r *)sock_ctx->buf;
     sock_ctx->type = SOCKET_INIT;
     sock_init_ctx->size = bucket_size;
-    sock_init_ctx->op = op;
+    sock_init_ctx->op = op & 0x03;
+    if ((op & 0x04) == SOCKET_OP_REINIT)
+        sock_init_ctx->re_init = 1;
     sock_send_recv(ctx->socket, buf, buf, ORAM_SOCKET_INIT_SIZE, ORAM_SOCKET_INIT_SIZE_R);
     log_f("Init Request to Server");
+    if (sock_init_ctx_r->status == SOCKET_RESPONSE_FAIL) {
+        log_f("Init Fail, Msg:%s", sock_init_ctx_r->err_msg);
+        return -1;
+    }
+    else
+        return 0;
 }
 
 void evict_path(client_ctx *ctx) {
@@ -268,11 +277,11 @@ void early_reshuffle(int pos, client_ctx *ctx) {
     }
 }
 
-void client_init(client_ctx *ctx, oram_args_t *args) {
-    sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, args->host, args->port, 0);
+int client_init(client_ctx *ctx, oram_args_t *args) {
+    return sock_init(&ctx->server_addr, &ctx->addrlen, &ctx->socket, args->host, args->port, 0);
 }
 
-void client_create(client_ctx *ctx, int size_bucket) {
+int client_create(client_ctx *ctx, int size_bucket, int re_init) {
     int i, bk, j, w;
     int address_size = size_bucket * ORAM_BUCKET_REAL;
     //TODO decide if 40 is enough
@@ -302,7 +311,11 @@ void client_create(client_ctx *ctx, int size_bucket) {
         sto_ctx->position_map[i] = bk;
     }
 
-    oram_server_init(size_bucket, ctx, SOCKET_OP_CREATE);
+    oram_init_op op = SOCKET_OP_CREATE;
+    if (re_init == 1)
+        op = SOCKET_OP_REINIT|SOCKET_OP_CREATE;
+    if (oram_server_init(size_bucket, ctx, op) != 0)
+        return -1;
 
     //construct a new bucket
     bucket->read_counter = 0;
@@ -335,7 +348,8 @@ void client_create(client_ctx *ctx, int size_bucket) {
         sock_write->bucket_id = i;
         sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
     }
-    log_f("Client Init");
+    log_f("Client Create");
+    return 0;
 }
 
 int client_load(client_ctx *ctx) {
@@ -365,9 +379,10 @@ int client_load(client_ctx *ctx) {
             add_to_stash(sto_ctx->stash, block);
         }
     }
-    oram_server_init(0, ctx, SOCKET_OP_LOAD);
+    if (oram_server_init(0, ctx, SOCKET_OP_LOAD) != 0)
+        return -1;
     close(fd);
-    return 1;
+    return 0;
 }
 
 void client_save(client_ctx *ctx) {

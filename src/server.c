@@ -75,7 +75,7 @@ int server_create(int size, int max_mem, storage_ctx *sto_ctx) {
         sto_ctx->mem_counter++;
         evict_to_disk(sto_ctx, i);
     }
-    return 1;
+    return 0;
 }
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
@@ -84,7 +84,8 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
     storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
-    sock_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1);
+    if (sock_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
+        return;
     sv_ctx->buff = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->buff_r = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->running = 1;
@@ -156,15 +157,17 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
                     int status;
                     if (init_ctx->op == SOCKET_OP_CREATE) {
                         if (sto_ctx->size != 0 && init_ctx->re_init == 0) {
-                            status = 0;
+                            status = -1;
                             sprintf(init_ctx_r->err_msg, "Already init.");
                         }
-                        else
+                        else {
+                            free_server(sto_ctx);
                             status = server_create(init_ctx->size, args->max_mem, sto_ctx);
+                        }
                     }
                     else if (init_ctx->op == SOCKET_OP_LOAD) {
                         if (sto_ctx->size != 0 && init_ctx->re_init == 0) {
-                            status = 0;
+                            status = -1;
                             sprintf(init_ctx_r->err_msg, "Already init.");
                         }
                         else {
@@ -177,9 +180,9 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
                         sv_ctx->running = 0;
                     }
                     else
-                        status = 0;
+                        status = -1;
 
-                    if (status == 1)
+                    if (status == 0)
                         init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
                     else
                         init_ctx_r->status = SOCKET_RESPONSE_FAIL;
@@ -202,7 +205,7 @@ int server_save(storage_ctx *ctx) {
     write(fd, ctx, sizeof(storage_ctx));
     close(fd);
     flush_buckets(ctx);
-    return 1;
+    return 0;
 }
 
 int server_load(storage_ctx *ctx) {
@@ -211,13 +214,14 @@ int server_load(storage_ctx *ctx) {
     int i;
     read(fd, ctx, sizeof(storage_ctx));
     ctx->bucket_list = calloc(ctx->size, sizeof(oram_bucket *));
+    ctx->mem_counter = 0;
     //Do not read too many buckets into memory
     for (i = 0;i < ctx->mem_max;i++) {
         ctx->bucket_list[i] = read_bucket_from_file(i);
         ctx->mem_counter++;
     }
     close(fd);
-    return 1;
+    return 0;
 }
 
 void server_stop(server_ctx *sv_ctx) {
