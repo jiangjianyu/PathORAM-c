@@ -32,6 +32,15 @@ int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
     return 0;
 }
 
+int sock_connect_init(struct sockaddr_in *addr, socklen_t addrlen) {
+    int return_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (connect(return_sock, (struct sockaddr *)addr, addrlen) < 0) {
+        err("connect error");
+        return -1;
+    }
+    return return_sock;
+}
+
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
     int r = send(sock, send_msg, len, 0);
     if (r <= 0)

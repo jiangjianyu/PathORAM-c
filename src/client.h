@@ -12,26 +12,36 @@
 #include "crypt.h"
 #include "socket.h"
 #include "args.h"
+#include "scheduler.h"
 
 #define ORAM_RESHUFFLE_RATE 20
 #define ORAM_FILE_CLIENT_FORMAT "ORAM_CLIENT.meta"
 
 typedef struct {
-    int oram_size;
-    int oram_tree_height;
-    int *position_map;
-    client_stash *stash;
-    int round;
-    int eviction_g;
+    int socket;
+    struct sockaddr_in server_addr;
+    socklen_t addrlen;
     char storage_key[ORAM_STORAGE_KEY_LEN + 1];
 } client_storage_ctx;
 
 typedef struct {
-    int socket;
     client_storage_ctx *client_storage;
-    socklen_t addrlen;
+    int oram_size;
+    int oram_tree_height;
+    int node_count;
+    int *server_working_queue;
+    int backup_count;
+    int position_map;
+    int round;
+    int eviction_g;
+    client_stash *stash;
+    int server_sock;
+    int running;
     struct sockaddr_in server_addr;
+    socklen_t addrlen;
+    oram_request_queue *queue;
     oram_client_args *args;
+    pthread_t *worker_id;
     //Share buffer for early eviction
     int metadata_counter[ORAM_TREE_DEPTH];
     unsigned char blank_data[ORAM_BLOCK_SIZE];

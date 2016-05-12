@@ -8,7 +8,7 @@ set(SOURCE_FILES src/main.c src/bucket.h src/oram.h src/crypt.h src/socket.h src
 set(HEADER_FILES src/client.h src/bucket.h src/oram.h src/crypt.h src/socket.h src/server.h src/args.h src/daemon.h src/log.h src/stash.h src/uthash.h src/utlist.h)
 add_executable(pathOram ${SOURCE_FILES})
 target_link_libraries(pathOram sodium m)
-add_library(pathoram SHARED ${SOURCE_FILES})
+add_library(pathoram SHARED ${SOURCE_FILES} src/scheduler.h src/scheduler.c)
 #target_include_directories(pathoram PRIVATE src)
 set_target_properties(pathOram
         PROPERTIES

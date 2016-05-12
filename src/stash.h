@@ -13,6 +13,8 @@
 typedef struct stash_block{
     int address;
     int bucket_id;
+    int evict_count;
+    _Bool write_after_evict;
     unsigned char data[ORAM_BLOCK_SIZE];
     struct stash_block *next_l;
     UT_hash_handle hh;

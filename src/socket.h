@@ -89,6 +89,18 @@ typedef struct {
     char err_msg[20];
 } socket_init_r;
 
+typedef struct {
+    int address;
+    oram_access_op op;
+    unsigned char data[ORAM_BLOCK_SIZE];
+} socket_access;
+
+typedef struct {
+    int address;
+    socket_response_type status;
+    unsigned char data[ORAM_BLOCK_SIZE];
+} socket_access_r;
+
 #define ORAM_SOCKET_OVERHEAD sizeof(int)
 #define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + ORAM_SOCKET_OVERHEAD
@@ -109,6 +121,9 @@ typedef struct {
 #define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
 
 #define ORAM_SOCKET_BACKLOG 40
+
+#define ORAM_SOCKET_ACCESS_SIZE sizeof(socket_access)
+#define ORAM_SOCKET_ACCESS_SIZE_R sizeof(socket_access_r)
 
 int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port, int if_bind);

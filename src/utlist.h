@@ -307,7 +307,7 @@ do {                                                                            
  * singly linked list macros (non-circular)                                   *
  *****************************************************************************/
 #define LL_PREPEND(head,add)                                                                   \
-    LL_PREPEND2(head,add,next)
+    LL_PREPEND2(head,add,next_l)
 
 #define LL_PREPEND2(head,add,next)                                                             \
 do {                                                                                           \

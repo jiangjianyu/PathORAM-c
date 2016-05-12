@@ -41,6 +41,7 @@ typedef struct {
     char *save_file;
     unsigned char key[ORAM_CRYPT_KEY_LEN];
     int verbose;
+    int worker;
 } oram_client_args;
 
 void args_parse(oram_args_t *args, int argc, char **argv);
