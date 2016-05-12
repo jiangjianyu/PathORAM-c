@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "client.h"
-#include "args.h"
 
 int get_random_leaf(int pos_node, int oram_size) {
     int random = get_random(oram_size);
@@ -98,7 +97,6 @@ void write_bucket_to_server(client_ctx *ctx, int bucket_id,
     encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)meta, ORAM_META_SIZE);
     sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
 }
-//TODO does not use oram_bucket_encrypted_meta
 int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypted_metadata metadata[], client_ctx *ctx) {
     int pos_run, i;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
@@ -106,7 +104,8 @@ int get_metadata_helper(int pos, unsigned char *socket_buf, oram_bucket_encrypte
     socket_get_metadata_r *sock_meta_r = (socket_get_metadata_r *)sock_ctx->buf;
     sock_ctx->type = SOCKET_GET_META;
     sock_meta->pos = pos;
-    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE, ORAM_SOCKET_META_SIZE_R(ctx->oram_tree_height));
+    sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_META_SIZE,
+                   ORAM_SOCKET_META_SIZE_R(ctx->client_storage->oram_tree_height));
     for (i = 0, pos_run = pos; ; pos_run = (pos_run - 1) >> 1, ++i) {
         if (decrypt_message(metadata[i].encrypt_metadata,
                             sock_meta_r->metadata[i].encrypt_metadata,
@@ -135,7 +134,6 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     oram_bucket_metadata *de_meta;
     for (i = 0, found = 0, pos_run = pos; ; pos_run = (pos_run - 1) >> 1, ++i) {
         de_meta = (oram_bucket_metadata *)&metadata[i].encrypt_metadata;
-        //TODO Better Loop
         if (found == 1)
             sock_block->offsets[i] = get_random_dummy(metadata[i].valid_bits, de_meta->offset);
         else {
@@ -155,8 +153,8 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
             break;
     }
     sock_send_recv(ctx->socket, socket_buf, socket_buf,
-                   ORAM_SOCKET_BLOCK_SIZE(ctx->oram_tree_height),
-                   ORAM_SOCKET_BLOCK_SIZE_R(ctx->oram_tree_height));
+                   ORAM_SOCKET_BLOCK_SIZE(ctx->client_storage->oram_tree_height),
+                   ORAM_SOCKET_BLOCK_SIZE_R(ctx->client_storage->oram_tree_height));
     for (i = 0, pos_run = pos;;pos_run = (pos_run - 1) >> 1, ++i) {
         encrypt_message_old(xor_tem, ctx->blank_data, ORAM_BLOCK_SIZE, sock_block_r->nonce[i]);
         if (i != found_pos)
@@ -248,7 +246,7 @@ void evict_path(client_ctx *ctx) {
     client_storage_ctx *sto_ctx = ctx->client_storage;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     int pos = gen_reverse_lexicographic(sto_ctx->eviction_g, sto_ctx->oram_size, sto_ctx->oram_tree_height);
-    sto_ctx->eviction_g = (sto_ctx->eviction_g + 1) % ORAM_LEAF_SIZE;
+    sto_ctx->eviction_g = (sto_ctx->eviction_g + 1) % ((ctx->client_storage->oram_size >> 1) + 1);
     sock_ctx->type = SOCKET_READ_BUCKET;
     for (pos_run = pos; ;pos_run = (pos_run - 1) >> 1) {
         read_bucket_to_stash(ctx, pos_run, socket_buf);
@@ -297,7 +295,6 @@ int client_init(client_ctx *ctx, oram_client_args *args) {
 int client_create(client_ctx *ctx, int size_bucket, int re_init) {
     int i, bk, j, w;
     int address_size = size_bucket * ORAM_BUCKET_REAL;
-    //TODO decide if 40 is enough
     int address_position_map[size_bucket][80];
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
@@ -308,7 +305,7 @@ int client_create(client_ctx *ctx, int size_bucket, int re_init) {
     ctx->client_storage = sto_ctx;
 
     sto_ctx->oram_size = size_bucket;
-    sto_ctx->oram_tree_height = log(sto_ctx->oram_size + 1)/log(2);
+    sto_ctx->oram_tree_height = log(sto_ctx->oram_size + 1)/log(2) + 1;
     sto_ctx->position_map = malloc(sizeof(int) * address_size);
     sto_ctx->stash = malloc(sizeof(client_stash));
     sto_ctx->round = 0;

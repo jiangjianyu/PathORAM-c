@@ -55,10 +55,10 @@ int main (int argc, char* argv[]) {
         ar.verbose = 1;
         if (client_init(&ctx, &ar) < 0)
             return -1;
-//        if (client_create(&ctx, 6000, 1) < 0)
-//            return -1;
-        if (client_load(&ctx, 1) < 0)
+        if (client_create(&ctx, 6000, 1) < 0)
             return -1;
+//        if (client_load(&ctx, 1) < 0)
+//            return -1;
         unsigned char data[ORAM_BLOCK_SIZE];
         int m;
         for(m = 0;m < 100;m++) {

@@ -92,13 +92,16 @@ typedef struct {
 #define ORAM_SOCKET_OVERHEAD sizeof(int)
 #define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + ORAM_SOCKET_OVERHEAD
-#define ORAM_SOCKET_BLOCK_SIZE(tree_height) sizeof(socket_read_block) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_BLOCK_SIZE(tree_height) sizeof(socket_read_block) + ORAM_SOCKET_OVERHEAD \
+                                                - (ORAM_TREE_DEPTH - tree_height) * sizeof(int)
 #define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + ORAM_SOCKET_OVERHEAD
 
 #define ORAM_SOCKET_READ_SIZE_R sizeof(socket_read_bucket_r) + ORAM_SOCKET_OVERHEAD
-#define ORAM_SOCKET_META_SIZE_R(tree_height) sizeof(socket_get_metadata_r) + ORAM_SOCKET_OVERHEAD
-#define ORAM_SOCKET_BLOCK_SIZE_R(tree_height) sizeof(socket_read_block_r) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_META_SIZE_R(tree_height) sizeof(socket_get_metadata_r) + ORAM_SOCKET_OVERHEAD \
+                                                 - (ORAM_TREE_DEPTH - tree_height) * sizeof(oram_bucket_encrypted_metadata)
+#define ORAM_SOCKET_BLOCK_SIZE_R(tree_height) sizeof(socket_read_block_r) + ORAM_SOCKET_OVERHEAD \
+                                                  - (ORAM_TREE_DEPTH - tree_height) * ORAM_CRYPT_NONCE_LEN
 #define ORAM_SOCKET_WRITE_SIZE_R sizeof(socket_write_bucket_r) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_INIT_SIZE_R sizeof(socket_init_r) + ORAM_SOCKET_OVERHEAD
 

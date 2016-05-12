@@ -16,7 +16,7 @@ void gen_crypt_pair(crypt_ctx *ctx) {
 void crypt_init(unsigned char key[]) {
     cr_ctx = malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
-    if (key == NULL) {
+    if (key[0] == 0) {
         int r = open(ORAM_KEY_FILE, O_RDONLY);
         if (r < 0)
             randombytes_buf(cr_ctx->key, ORAM_CRYPT_KEY_LEN);

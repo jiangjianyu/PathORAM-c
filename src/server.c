@@ -66,7 +66,7 @@ int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]) {
     log_f("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
     sto_ctx->size = size;
-    sto_ctx->oram_tree_height = log(size + 1) / log(2);
+    sto_ctx->oram_tree_height = log(size + 1) / log(2) + 1;
     sto_ctx->mem_counter = 0;
     sto_ctx->mem_max = max_mem;
     memcpy(sto_ctx->storage_key, key, ORAM_STORAGE_KEY_LEN);
