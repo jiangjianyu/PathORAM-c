@@ -11,7 +11,7 @@
 static const char *help_message =
 "usage: pathoram -c config_file -m [server|client] -b [host] -p port -d [start|stop|restart] -v\n"
 "\n"
-"  -m [server|client]    select running mode, client mode is only for testing\n"
+"  -m [server|client|midware]    select running mode, client mode is only for testing\n"
 "  -h, --help            show this help message and exit\n"
 "  -d start/stop/restart control pathoram process. if omitted, will run\n"
 "                        in foreground, only work in server\n"
@@ -63,6 +63,8 @@ void args_parse(oram_args_t *args, int argc, char **argv) {
                     args->mode = ORAM_MODE_SERVER;
                 else if (strcmp("client", optarg) == 0)
                     args->mode = ORAM_MODE_CLIENT;
+                else if (strcmp("midware", optarg) == 0)
+                    args->mode = ORAM_MODE_MIDWARE;
                 else
                     errf("unknow command %s", optarg);
                 break;

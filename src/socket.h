@@ -125,8 +125,12 @@ typedef struct {
 #define ORAM_SOCKET_ACCESS_SIZE sizeof(socket_access)
 #define ORAM_SOCKET_ACCESS_SIZE_R sizeof(socket_access_r)
 
-int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
+int sock_init_byhost(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                  char *host, int port, int if_bind);
+
+void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, char *host, int port);
+
+int sock_connect_init(struct sockaddr_in *addr, socklen_t addrlen);
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len);
 

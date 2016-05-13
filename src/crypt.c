@@ -43,6 +43,16 @@ int get_random(int range) {
     return randombytes_uniform(range);
 }
 
+void get_random_pair(int node_count, int backup, int oram_size, int random[]) {
+    int node[backup], node_index[backup], i;
+    for (i = 0;i < backup;i++) {
+        //TODO Maybe the same
+        node[i] = randombytes_uniform(node_count * backup);
+        node_index[i] = randombytes_uniform(oram_size);
+        random[i] = node[i] * oram_size + node_index[i];
+    }
+}
+
 void get_random_key(char *key) {
     randombytes_buf(key, ORAM_STORAGE_KEY_LEN);
 }

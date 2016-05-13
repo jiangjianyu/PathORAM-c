@@ -33,6 +33,8 @@ void get_random_key(char *key);
 
 int get_random(int range);
 
+void get_random_pair(int node_count, int backup, int oram_size, int random[]);
+
 int get_random_but(int range, int but);
 
 void get_random_permutation(int len, int permutation[]);

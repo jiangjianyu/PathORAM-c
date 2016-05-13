@@ -49,29 +49,31 @@ int main (int argc, char* argv[]) {
         }
         server_run(args, &sv_ctx);
     }
-    else {
-        client_ctx ctx;
+    else if (args->mode == ORAM_MODE_MIDWARE) {
         oram_client_args ar;
-        ar.verbose = 1;
-        if (client_init(&ctx, &ar) < 0)
-            return -1;
-        if (client_create(&ctx, 6000, 1) < 0)
+//        if (client_init(&ctx, &ar) < 0)
+//            return -1;
+        if (client_create(2, 100, 2, 1, &ar) < 0)
             return -1;
 //        if (client_load(&ctx, 1) < 0)
 //            return -1;
+    }
+    else if (args->mode == ORAM_MODE_CLIENT) {
+        int i;
         unsigned char data[ORAM_BLOCK_SIZE];
-        int m;
-        for(m = 0;m < 100;m++) {
-            data[0] = m;
-            oblivious_access(m, ORAM_ACCESS_WRITE, data, &ctx);
+        oram_node_pair pair;
+        pair.host = "127.0.0.1";
+        pair.port = 300001;
+        for (i = 0;i < 100;i++) {
+            data[0] = i;
+            client_access(i, ORAM_ACCESS_WRITE, data, &pair);
         }
-        for(m = 0;m < 100;m++) {
-            oblivious_access(m, ORAM_ACCESS_READ, data, &ctx);
-            f[m] = data[0];
+        for (i = 0;i < 100;i++) {
+            client_access(i, ORAM_ACCESS_READ, data, &pair);
+            f[i] = data[0];
         }
-        for (m = 0;m < 100;m++)
-            assert(f[m] == m);
-        client_save(&ctx, 0);
+        for (i = 0;i < 100;i++)
+            assert(f[i] == i);
     }
     return 0;
 }

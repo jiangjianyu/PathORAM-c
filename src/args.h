@@ -14,7 +14,8 @@
 
 typedef enum {
     ORAM_MODE_SERVER = 0,
-    ORAM_MODE_CLIENT = 1
+    ORAM_MODE_CLIENT = 1,
+    ORAM_MODE_MIDWARE = 2
 } oram_mode;
 
 typedef enum {
@@ -37,11 +38,18 @@ typedef struct {
 typedef struct {
     char *host;
     int port;
+} oram_node_pair;
+
+typedef struct {
+    char *host;
+    int port;
     char *load_file;
     char *save_file;
     unsigned char key[ORAM_CRYPT_KEY_LEN];
     int verbose;
     int worker;
+    oram_node_pair *node_list;
+    int oram_node_count;
 } oram_client_args;
 
 void args_parse(oram_args_t *args, int argc, char **argv);

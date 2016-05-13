@@ -5,7 +5,7 @@
 #include "socket.h"
 #include "log.h"
 
-int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
+int sock_init_byhost(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                char *host, int port, int if_bind) {
     int r = 0;
     inet_aton(host, &addr->sin_addr);
@@ -39,6 +39,13 @@ int sock_connect_init(struct sockaddr_in *addr, socklen_t addrlen) {
         return -1;
     }
     return return_sock;
+}
+
+void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, char *host, int port) {
+    inet_aton(host, &addr->sin_addr);
+    addr->sin_port = htons(port);
+    addr->sin_family = AF_INET;
+    *addrlen = sizeof(struct sockaddr_in);
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
