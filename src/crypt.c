@@ -46,8 +46,9 @@ int get_random(int range) {
 void get_random_pair(int node_count, int backup, int oram_size, int random[]) {
     int node[backup], node_index[backup], i;
     for (i = 0;i < backup;i++) {
-        //TODO Maybe the same
-        node[i] = randombytes_uniform(node_count * backup);
+        //Addresses are distributed into different districts
+        node[i] = randombytes_uniform(node_count);
+        node[i] += node_count * i;
         node_index[i] = randombytes_uniform(oram_size);
         random[i] = node[i] * oram_size + node_index[i];
     }

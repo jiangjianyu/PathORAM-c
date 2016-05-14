@@ -86,7 +86,7 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
     sv_ctx->sto_ctx = sto_ctx;
-    if (sock_init(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
+    if (sock_init_byhost(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
         return;
     sv_ctx->buff = malloc(ORAM_SOCKET_BUFFER);
     sv_ctx->buff_r = malloc(ORAM_SOCKET_BUFFER);

@@ -53,8 +53,22 @@ int main (int argc, char* argv[]) {
         oram_client_args ar;
 //        if (client_init(&ctx, &ar) < 0)
 //            return -1;
+        ar.host = "127.0.0.1";
+        ar.port = 30000;
+        ar.worker = 4;
+        ar.node_list = calloc(4 ,sizeof(oram_node_pair));
+        ar.node_list[0].host = "127.0.0.1";
+        ar.node_list[1].host = "127.0.0.1";
+        ar.node_list[2].host = "127.0.0.1";
+        ar.node_list[3].host = "127.0.0.1";
+        ar.node_list[0].port = 30001;
+        ar.node_list[1].port = 30002;
+        ar.node_list[2].port = 30003;
+        ar.node_list[3].port = 30004;
+        crypt_init(ar.key);
         if (client_create(2, 100, 2, 1, &ar) < 0)
             return -1;
+        listen_accept(&ar);
 //        if (client_load(&ctx, 1) < 0)
 //            return -1;
     }
@@ -63,7 +77,7 @@ int main (int argc, char* argv[]) {
         unsigned char data[ORAM_BLOCK_SIZE];
         oram_node_pair pair;
         pair.host = "127.0.0.1";
-        pair.port = 300001;
+        pair.port = 30000;
         for (i = 0;i < 100;i++) {
             data[0] = i;
             client_access(i, ORAM_ACCESS_WRITE, data, &pair);

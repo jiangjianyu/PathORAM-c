@@ -12,7 +12,7 @@
 #include "crypt.h"
 #include "socket.h"
 #include "args.h"
-
+#include <semaphore.h>
 
 #define ORAM_RESHUFFLE_RATE 20
 #define ORAM_FILE_CLIENT_FORMAT "ORAM_CLIENT.meta"
@@ -42,13 +42,13 @@ typedef struct {
 } client_storage_ctx;
 
 typedef struct {
-    client_storage_ctx **client_storage;
+    client_storage_ctx *client_storage;
     int oram_size;
     int oram_tree_height;
     int node_count;
     int *server_working_queue;
     int backup_count;
-    int **position_map;
+    int *position_map;
     int *node_access_counter;
     pthread_mutex_t mutex_counter;
     client_stash *stash;
