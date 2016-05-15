@@ -186,12 +186,17 @@ int read_path(int pos, int address, unsigned char data[], access_ctx *ctx) {
 }
 
 int get_access_node(int node_counter[], int choose_node[], int node_total, int *position_index) {
-    int i, min_node;
+    int i, min_node, exist = 0;
     for (i = 1, min_node = choose_node[0], *position_index = 0;i < node_total;i++) {
         if (node_counter[choose_node[i]] < node_counter[min_node]) {
             min_node = choose_node[i];
             *position_index = i;
+            exist = 1;
         }
+    }
+    if (!exist) {
+        *position_index = get_random(node_total);
+        min_node = choose_node[*position_index];
     }
     return min_node;
 }
