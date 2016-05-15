@@ -585,10 +585,7 @@ int client_access(int address, oram_access_op op,unsigned char data[], oram_node
     struct sockaddr_in tem_addr;
     socklen_t len;
     sock_init_byhost(&tem_addr, &len, &sock, pair->host, pair->port, 0);
-    if (send(sock, buf, ORAM_SOCKET_ACCESS_SIZE, 0) <= 0)
-        err("error");
-    if (recv(sock, buf, ORAM_SOCKET_ACCESS_SIZE_R, 0) <= 0)
-        err("error");
+    sock_send_recv(sock, buf, buf, ORAM_SOCKET_ACCESS_SIZE, ORAM_SOCKET_ACCESS_SIZE_R);
     memcpy(data, access_sock_r->data, ORAM_BLOCK_SIZE);
     return 0;
 }

@@ -49,16 +49,55 @@ void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, char *host, int por
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
-    int r = send(sock, send_msg, len, 0);
-    if (r <= 0)
-        return -1;
-    return 0;
+    int r = 0, retry = 0;
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    for (retry = 0;retry < 5;retry++) {
+        r = send(sock, send_msg, len, 0);
+        if (r < 0) {
+            if (errno == EWOULDBLOCK) {
+                log_f("timeout retry %d", retry);
+                continue;
+            }
+            err("connection error");
+            return -1;
+        } else if (r == 0) {
+            err("connection close");
+            return -1;
+        } else {
+            return 0;
+        }
+    }
+    log_f("connection timeout");
+    return -1;
 }
 
 int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
-    int total = 0, r = 0;
+    int total = 0, r = 0 ,retry = 0;
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     while (total < sock_len) {
+        if (retry >= 5) {
+            log_f("connection timeout, exit");
+            return -1;
+        }
         r = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
+        if (r < 0) {
+            if (errno == EWOULDBLOCK) {
+                log_f("connection timeout, retry %d", retry);
+                retry++;
+                continue;
+            }
+            err("connection error");
+            return -1;
+        } else if (r == 0) {
+            err("connection close");
+            return -1;
+        }
         total += r;
     }
     return 0;
@@ -66,12 +105,28 @@ int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
 
 //recv left package
 int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
-    //TODO exit when recv too many times
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    int retry = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     int total = now;
     while (total < len) {
+        if (retry >= 5) {
+            log_f("connection timeout, exit");
+            return -1;
+        }
         now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
-        if (now == 0 || now == -1) {
-            log_f("wrong package");
+        if (now < 0) {
+            if (errno == EWOULDBLOCK) {
+                log_f("connection timeout, retry %d", retry);
+                retry++;
+                continue;
+            }
+            err("connection error");
+            return -1;
+        } else if (now == 0) {
+            err("connection close");
             return -1;
         }
         total += now;
@@ -82,7 +137,6 @@ int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
 int sock_send_recv(int sock, unsigned char send_msg[], unsigned char recv_msg[],
                    int send_len, int recv_len) {
     sock_standard_send(sock, send_msg, send_len);
-    //TODO stop when timeout, or return status is wrong
     sock_standard_recv(sock, recv_msg, recv_len);
     return 0;
 }
