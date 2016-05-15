@@ -27,6 +27,7 @@ int init_stash(client_stash *stash, int size) {
 //Only add to stash if in bucket_id list
 void add_to_stash(client_stash *stash, stash_block *block) {
     stash_block *ne;
+    stash_list_block *ne_list;
     int i;
     pthread_mutex_lock(&stash->stash_mutex);
     HASH_FIND_INT(stash->address_to_stash, &block->address, ne);
@@ -41,8 +42,11 @@ void add_to_stash(client_stash *stash, stash_block *block) {
                     ne->bucket_id[index] = ne->bucket_id[ne->evict_count];
                     ne->bucket_id[ne->evict_count++] = tem;
                 }
-                log_f("Address %d in bucket %d", block->address, block->bucket_id[0]);
-                LL_APPEND(stash->bucket_to_stash[block->bucket_id[0]], ne);
+//                log_f("Address %d in bucket %d", block->address, block->bucket_id[0]);
+                ne_list = malloc(sizeof(stash_list_block));
+                ne_list->block = ne;
+                ne_list->next_l = NULL;
+                LL_APPEND(stash->bucket_to_stash[block->bucket_id[0]], ne_list);
                 stash->bucket_to_stash_count[block->bucket_id[0]]++;
             }
         }
@@ -51,8 +55,11 @@ void add_to_stash(client_stash *stash, stash_block *block) {
     }
     HASH_ADD_INT(stash->address_to_stash, address, block);
     for (i = 0;i < block->evict_count;i++) {
-        log_f("Address %d in bucket %d", block->address, block->bucket_id[i]);
-        LL_APPEND(stash->bucket_to_stash[block->bucket_id[i]], block);
+//        log_f("Address %d in bucket %d", block->address, block->bucket_id[i]);
+        ne_list = malloc(sizeof(stash_list_block));
+        ne_list->block = block;
+        ne_list->next_l = NULL;
+        LL_APPEND(stash->bucket_to_stash[block->bucket_id[i]], ne_list);
         stash->bucket_to_stash_count[block->bucket_id[i]]++;
     }
     pthread_mutex_unlock(&stash->stash_mutex);
@@ -63,41 +70,46 @@ int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_blo
     //TODO insure the first evict_bucket_id is in the stash
     pthread_mutex_lock(&stash->stash_mutex);
     int delete_max = stash->bucket_to_stash_count[bucket_id];
-    stash_block *now, *next = stash->bucket_to_stash[bucket_id];
+    stash_list_block *now, *next = stash->bucket_to_stash[bucket_id], *new_list;
+    stash_block *now_block;
     int i = 0, j;
     if (delete_max > max)
         delete_max = max;
     for (;i < delete_max; i++) {
         now = next;
         next = now->next_l;
-        block_list[i] = now;
-        if (now->evict_count == 1) {
-            HASH_DEL(stash->address_to_stash, now);
+        now_block = now->block;
+        block_list[i] = now_block;
+        if (now->block->evict_count == 1) {
+            HASH_DEL(stash->address_to_stash, now_block);
             LL_DELETE(stash->bucket_to_stash[bucket_id], now);
-            log_f("Address %d not in bucket %d", now->address, bucket_id);
+//            log_f("Address %d not in bucket %d", now_block->address, bucket_id);
             stash->bucket_to_stash_count[bucket_id]--;
-            if (now->write_after_evict == 1) {
-                now->evict_count = client_t.backup_count;
+            if (now_block->write_after_evict == 1) {
+                now_block->evict_count = client_t.backup_count;
                 for (j = 0; j < client_t.backup_count; i++) {
-                    log_f("RE:Address %d in bucket %d", now->address, now->bucket_id[j]);
-                    LL_APPEND(stash->bucket_to_stash[now->bucket_id[j]], now);
-                    stash->bucket_to_stash_count[now->bucket_id[j]]++;
-                    now->write_after_evict = 0;
+                    log_f("RE:Address %d in bucket %d", now_block->address, now_block->bucket_id[j]);
+                    new_list = malloc(sizeof(stash_list_block));
+                    new_list->block = now_block;
+                    new_list->next_l = NULL;
+                    LL_APPEND(stash->bucket_to_stash[now_block->bucket_id[j]], new_list);
+                    stash->bucket_to_stash_count[now_block->bucket_id[j]]++;
+                    now_block->write_after_evict = 0;
                 }
             }
         }
         else {
-            int index = in_bucket_list(bucket_id, now->bucket_id, client_t.backup_count);
-            if (index >= now->evict_count || !index) {
+            int index = in_bucket_list(bucket_id, now_block->bucket_id, client_t.backup_count);
+            if (index >= now_block->evict_count || !index) {
                 log_f("stash error:index %d, bucket %d", index, bucket_id);
                 return -1;
             }
             //Last valid index
-            now->evict_count--;
-            if (index != now->evict_count) {
-                int tem = now->bucket_id[index];
-                now->bucket_id[index] = now->bucket_id[now->evict_count];
-                now->bucket_id[now->evict_count] = tem;
+            now_block->evict_count--;
+            if (index != now_block->evict_count) {
+                int tem = now_block->bucket_id[index];
+                now_block->bucket_id[index] = now_block->bucket_id[now_block->evict_count];
+                now_block->bucket_id[now_block->evict_count] = tem;
             }
             LL_DELETE(stash->bucket_to_stash[bucket_id], now);
             stash->bucket_to_stash_count[bucket_id]--;

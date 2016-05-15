@@ -86,8 +86,10 @@ int main (int argc, char* argv[]) {
             client_access(i, ORAM_ACCESS_READ, data, &pair);
             f[i] = data[0];
         }
-        for (i = 0;i < 100;i++)
+        for (i = 0;i < 100;i++) {
+            log_f("assert %d == %d", i, f[i]);
             assert(f[i] == i);
+        }
     }
     return 0;
 }

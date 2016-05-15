@@ -16,13 +16,17 @@ typedef struct stash_block{
     int evict_count;
     _Bool write_after_evict;
     unsigned char data[ORAM_BLOCK_SIZE];
-    struct stash_block *next_l;
     UT_hash_handle hh;
 } stash_block;
 
+typedef struct stash_list_block {
+    stash_block *block;
+    struct stash_list_block *next_l;
+} stash_list_block;
+
 //two hash table, indexed by bucket_id or address
 typedef struct {
-    stash_block **bucket_to_stash;
+    stash_list_block **bucket_to_stash;
     int *bucket_to_stash_count;
     stash_block *address_to_stash;
     pthread_mutex_t stash_mutex;

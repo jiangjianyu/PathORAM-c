@@ -6,8 +6,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "client.h"
-#include "socket.h"
-#include "args.h"
 
 
 
@@ -70,7 +68,7 @@ void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
 //            logf("address %d data:%d", block->address, block->data[0]);
             add_to_stash(client_t.stash, block);
-            log_f("address %d in bucket %d, stash", block->address, block->bucket_id[0]);
+//            log_f("address %d in bucket %d, stash", block->address, block->bucket_id[0]);
         }
     }
 }
@@ -255,6 +253,9 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
         else
             memcpy(block->data, data, ORAM_BLOCK_SIZE);
         close(ctx->sock);
+    }
+    else {
+        log_f("access %d from stash", address);
     }
     return 0;
 }
@@ -454,7 +455,6 @@ int client_load(int re_init) {
         r = read(fd, block, sizeof(stash_block));
         if (r > 0) {
             bzero(&block->hh, sizeof(block->hh));
-            block->next_l = NULL;
             add_to_stash(client_t.stash, block);
         }
         total--;
@@ -544,6 +544,9 @@ void * worker_func(void *args) {
         memcpy(access_r->data, queue_block->data, ORAM_BLOCK_SIZE);
         access_r->status = SOCKET_RESPONSE_SUCCESS;
         send(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R, 0);
+        pthread_mutex_lock(&ctx->queue->queue_mutex);
+        HASH_DEL(ctx->queue->queue_hash, queue_block);
+        pthread_mutex_unlock(&ctx->queue->queue_mutex);
     }
     //process access address
 
@@ -577,8 +580,10 @@ int client_access(int address, oram_access_op op,unsigned char data[], oram_node
     struct sockaddr_in tem_addr;
     socklen_t len;
     sock_init_byhost(&tem_addr, &len, &sock, pair->host, pair->port, 0);
-    send(sock, buf, ORAM_SOCKET_ACCESS_SIZE, 0);
-    recv(sock, buf, ORAM_SOCKET_ACCESS_SIZE_R, 0);
+    if (send(sock, buf, ORAM_SOCKET_ACCESS_SIZE, 0) <= 0)
+        err("error");
+    if (recv(sock, buf, ORAM_SOCKET_ACCESS_SIZE_R, 0) <= 0)
+        err("error");
     memcpy(data, access_sock_r->data, ORAM_BLOCK_SIZE);
     return 0;
 }
