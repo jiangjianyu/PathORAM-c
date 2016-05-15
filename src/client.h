@@ -66,6 +66,7 @@ typedef struct {
 
 typedef struct access_ctx {
     int sock;
+    int access_node;
     oram_request_queue_block *queue_block;
     client_storage_ctx *storage_ctx;
     int metadata_counter[ORAM_TREE_DEPTH];

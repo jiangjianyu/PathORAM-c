@@ -62,16 +62,15 @@ void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
     for (i = 0;i < ORAM_BUCKET_REAL;i++) {
         //invalid address is set to -1
         if (sock_read_r->bucket.valid_bits[meta->offset[i]] == 1 && meta->address[i] >= 0) {
-            HASH_FIND_INT(client_t.stash->address_to_stash, &meta->address[i], block);
             block = malloc(sizeof(stash_block));
             block->address = meta->address[i];
             block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
-            block->bucket_id[0] = sock_read_r->bucket_id;
+            block->bucket_id[0] = sock_read_r->bucket_id + ctx->access_node * client_t.oram_size;
             block->evict_count = 1;
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
 //            logf("address %d data:%d", block->address, block->data[0]);
             add_to_stash(client_t.stash, block);
-//            logf("address %d in bucket %d, stash", block->address, block->bucket_id);
+            log_f("address %d in bucket %d, stash", block->address, block->bucket_id[0]);
         }
     }
 }
@@ -85,7 +84,7 @@ void write_bucket_to_server(access_ctx *ctx, int bucket_id,
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     socket_write_bucket *sock_write = (socket_write_bucket *)sock_ctx->buf;
     stash_block **stash_list = calloc(ORAM_BUCKET_REAL, sizeof(stash_block));
-    count = find_remove_by_bucket(client_t.stash, bucket_id, ORAM_BUCKET_REAL, stash_list);
+    count = find_remove_by_bucket(client_t.stash, bucket_id + ctx->access_node * client_t.oram_size, ORAM_BUCKET_REAL, stash_list);
     get_random_permutation(ORAM_BUCKET_SIZE, meta->offset);
     for (i = 0;i < count;i++) {
 //        logf("address %d data:%d", stash_list[i]->address, stash_list[i]->data[0]);
@@ -200,7 +199,7 @@ int get_access_node(int node_counter[], int choose_node[], int node_total, int *
 }
 
 int oblivious_access(int address, oram_access_op op, unsigned char data[], access_ctx *ctx) {
-    int data_in, leaf_pos, i;
+    int leaf_pos, i;
     int position[client_t.backup_count];
     int position_new[client_t.backup_count];
     unsigned char read_data[ORAM_BLOCK_SIZE];
@@ -216,6 +215,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
             choose_node[i] = client_t.position_map[address * client_t.backup_count + i] / client_t.oram_size;
         int access_node_id = get_access_node(client_t.node_access_counter, choose_node, client_t.backup_count, &position_index);
         int access_node_index = position[position_index] % client_t.oram_size;
+        ctx->access_node = access_node_id;
         //Do not care if value is changed during access
         pthread_mutex_lock(&client_t.mutex_counter);
         client_t.node_access_counter[access_node_id]++;
@@ -231,7 +231,6 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
             log_f("Access %d from error", address);
             return -1;
         }
-        close(ctx->sock);
         block = malloc(sizeof(stash_block));
         block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
         block->address = address;
@@ -255,6 +254,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
             memcpy(data, block->data, ORAM_BLOCK_SIZE);
         else
             memcpy(block->data, data, ORAM_BLOCK_SIZE);
+        close(ctx->sock);
     }
     return 0;
 }
@@ -393,9 +393,16 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
             for (w = ORAM_BUCKET_REAL; w < address_position_map[base_addr + i][0]; ++w) {
                 block = malloc(sizeof(stash_block));
                 block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
-                block->bucket_id[0] = base_addr + i;
-                block->evict_count = 1;
                 block->address = address_position_map[base_addr + i][w + 1];
+                block->bucket_id[0] = base_addr + i;
+                int u,v;
+                for (u = 0, v = 1;u < client_t.backup_count;u++) {
+                    if (client_t.position_map[block->address * client_t.backup_count + u] != block->bucket_id[0]) {
+                        block->bucket_id[v++] = client_t.position_map[block->address * client_t.backup_count + u];
+                    }
+                }
+                block->evict_count = 1;
+
                 memcpy(block->data, client_t.blank_data, ORAM_BLOCK_SIZE);
                 add_to_stash(client_t.stash, block);
     //            logf("Address %d in bucket %d, stash", address_position_map[i][j+1], i);
