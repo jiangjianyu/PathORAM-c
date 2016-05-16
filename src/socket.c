@@ -77,7 +77,7 @@ int sock_standard_send(int sock, unsigned char send_msg[], int len) {
 int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
     int total = 0, r = 0 ,retry = 0;
     struct timeval tv;
-    tv.tv_sec = 1;
+    tv.tv_sec = 20;
     tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     while (total < sock_len) {

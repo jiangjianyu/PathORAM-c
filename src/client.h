@@ -24,6 +24,7 @@ typedef struct oram_request_queue_block{
     unsigned char data[ORAM_BLOCK_SIZE];
     UT_hash_handle hh;
     struct oram_request_queue_block *next_l;
+    struct oram_request_queue_block *call_back_list;
 } oram_request_queue_block;
 
 typedef struct {
