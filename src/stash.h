@@ -10,10 +10,18 @@
 #include "bucket.h"
 #include "log.h"
 
+typedef enum lock_status{
+    ORAM_LOCK_UNLOCK = 0,
+    ORAM_LOCK_READ = 1,
+    ORAM_LOCK_WRITE = 2,
+    ORAM_LOCK_EVICT = 3
+} oram_lock_status;
+
 typedef struct stash_block{
     int address;
     int *bucket_id;
     int evict_count;
+    oram_lock_status lock_status;
     _Bool write_after_evict;
     unsigned char data[ORAM_BLOCK_SIZE];
     UT_hash_handle hh;
@@ -40,5 +48,9 @@ void add_to_stash(client_stash *stash ,stash_block *block);
 int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block *block_list[]);
 
 stash_block* find_edit_by_address(client_stash *stash, int address, oram_access_op op, unsigned char data[]);
+
+int stash_block_lock(client_stash *stash, int address, oram_lock_status status);
+
+int stash_block_unlock(client_stash *stash, int address);
 
 #endif //PATHORAM_STASH_H

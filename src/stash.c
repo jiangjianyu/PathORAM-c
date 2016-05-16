@@ -157,3 +157,29 @@ stash_block* find_edit_by_address(client_stash *stash, int address, oram_access_
     pthread_mutex_unlock(&stash->stash_mutex);
     return return_block;
 }
+
+int stash_block_lock(client_stash *stash , int address, oram_lock_status status) {
+    stash_block *ne;
+    int return_status = 0;
+    pthread_mutex_lock(&stash->stash_mutex);
+    HASH_FIND_INT(stash->address_to_stash, &address, ne);
+    if (ne != NULL) {
+        ne->lock_status = status;
+        return_status = 1;
+    }
+    pthread_mutex_unlock(&stash->stash_mutex);
+    return return_status;
+}
+
+int stash_block_unlock(client_stash *stash , int address) {
+    stash_block *ne;
+    int status = 0;
+    pthread_mutex_lock(&stash->stash_mutex);
+    HASH_FIND_INT(stash->address_to_stash, &address, ne);
+    if (ne != NULL) {
+        ne->lock_status = ORAM_LOCK_UNLOCK;
+        status = 1;
+    }
+    pthread_mutex_unlock(&stash->stash_mutex);
+    return status;
+}

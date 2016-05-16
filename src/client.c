@@ -550,6 +550,14 @@ void * worker_func(void *args) {
         memcpy(access_r->data, queue_block->data, ORAM_BLOCK_SIZE);
         access_r->status = SOCKET_RESPONSE_SUCCESS;
         sock_standard_send(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R);
+        //TODO if lock fail ?
+        if (stash_block_lock(client_t.stash, queue_block->address, ORAM_LOCK_READ) == 0) {
+            err("error in locking stash");
+        }
+        for (call_back_list = queue_block->call_back_list; call_back_list != NULL;call_back_list = call_back_list->next_l) {
+            find_edit_by_address(client_t.stash, call_back_list->address, call_back_list->op, call_back_list->data);
+        }
+        stash_block_unlock(client_t.stash, queue_block->address);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
         HASH_DEL(ctx->queue->queue_hash, queue_block);
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
