@@ -31,6 +31,26 @@ extern int verbose_mode;
 #define errf(s...) __LOG(stderr, 1, s)
 #define err(s) perror_timestamp(s, __FILE__, __LINE__)
 
+#define log_sys(s...) log_f(s)
+
+#if ORAM_DEBUG_LEVEL >= 1
+#define log_normal(s...) log_f(s)
+#else
+#define log_normal(s...)
+#endif
+
+#if ORAM_DEBUG_LEVEL >= 2
+#define log_detail(s...) log_f(s)
+#else
+#define log_detail(s...)
+#endif
+
+#if ORAM_DEBUG_LEVEL >= 3
+#define log_all(s...) log_f(s)
+#else
+#define log_all(s...)
+#endif
+
 #ifdef DEBUG
 #define debugf(s...) logf(s)
 #else

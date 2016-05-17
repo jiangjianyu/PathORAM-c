@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "client.h"
-
+#include "bucket.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -26,7 +26,7 @@ int get_random_dummy(_Bool valid_bits[], int offsets[]) {
         if (valid_bits[offsets[i]] == 1)
             return offsets[i];
     }
-    log_f("error, not enough");
+    errf("error, not enough");
     return 0;
 }
 
@@ -45,7 +45,9 @@ int gen_reverse_lexicographic(int g, int oram_size, int tree_height) {
 
 void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf) {
+#if ORAM_DEBUG_LEVEL >= 2
     log_f("read bucket %d to stash", bucket_id);
+#endif
     int i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -66,16 +68,16 @@ void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
             block->bucket_id[0] = sock_read_r->bucket_id + ctx->access_node * client_t.oram_size;
             block->evict_count = 1;
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
-//            logf("address %d data:%d", block->address, block->data[0]);
             add_to_stash(client_t.stash, block);
-//            log_f("address %d in bucket %d, stash", block->address, block->bucket_id[0]);
         }
     }
 }
 
 void write_bucket_to_server(access_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf) {
+#if ORAM_DEBUG_LEVEL >= 2
     log_f("write bucket %d to server", bucket_id);
+#endif
     int count,i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -85,10 +87,8 @@ void write_bucket_to_server(access_ctx *ctx, int bucket_id,
     count = find_remove_by_bucket(client_t.stash, bucket_id + ctx->access_node * client_t.oram_size, ORAM_BUCKET_REAL, stash_list);
     get_random_permutation(ORAM_BUCKET_SIZE, meta->offset);
     for (i = 0;i < count;i++) {
-//        logf("address %d data:%d", stash_list[i]->address, stash_list[i]->data[0]);
         encrypt_message(sock_write->bucket.data[meta->offset[i]], stash_list[i]->data, ORAM_BLOCK_SIZE);
         meta->address[i] = stash_list[i]->address;
-//        logf("address %d in bucket %d, server", stash_list[i]->address, bucket_id);
     }
     for (i = count; i < ORAM_BUCKET_SIZE; i++) {
         encrypt_message(sock_write->bucket.data[meta->offset[i]], client_t.blank_data, ORAM_BLOCK_SIZE);
@@ -139,7 +139,7 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     oram_bucket_metadata *de_meta;
     for (i = 0, found = 0, pos_run = pos; ; pos_run = (pos_run - 1) >> 1, ++i) {
         de_meta = (oram_bucket_metadata *)&metadata[i].encrypt_metadata;
-        if (found == 1)
+        if (found == 1 || ctx->access_node_index != pos_run)
             sock_block->offsets[i] = get_random_dummy(metadata[i].valid_bits, de_meta->offset);
         else {
             for (j = 0; j < ORAM_BUCKET_REAL; j++) {
@@ -153,7 +153,6 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
             if (found == 0)
                 sock_block->offsets[i] = get_random_dummy(metadata[i].valid_bits, de_meta->offset);
         }
-//        logf("Read offset %d in bucket %d", sock_block->offsets[i], pos_run);
         if (pos_run == 0)
             break;
     }
@@ -209,21 +208,21 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
     stash_block *block;
     int choose_node[client_t.backup_count];
     int position_index;
-
     //Access from stash first
     block = find_edit_by_address(client_t.stash, address, op, data);
     if (block == NULL) {
         memcpy(position, client_t.position_map + address * client_t.backup_count, client_t.backup_count * sizeof(int));
+        log_all("visiting position %d %d", position[0], position[1]);
         for (i = 0;i < client_t.backup_count;i++)
             choose_node[i] = client_t.position_map[address * client_t.backup_count + i] / client_t.oram_size;
         int access_node_id = get_access_node(client_t.node_access_counter, choose_node, client_t.backup_count, &position_index);
         int access_node_index = position[position_index] % client_t.oram_size;
+        ctx->access_node_index = access_node_index;
         ctx->access_node = access_node_id;
         //Do not care if value is changed during access
         pthread_mutex_lock(&client_t.mutex_counter);
         client_t.node_access_counter[access_node_id]++;
         pthread_mutex_unlock(&client_t.mutex_counter);
-
         ctx->sock = sock_connect_init(&client_t.client_storage[access_node_id].server_addr, client_t.client_storage[access_node_id].addrlen);
         ctx->storage_ctx = &client_t.client_storage[access_node_id];
         if (address >= client_t.oram_size * client_t.node_count * ORAM_BUCKET_REAL)
@@ -231,19 +230,23 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
         get_random_pair(client_t.node_count, client_t.backup_count, client_t.oram_size, position_new);
         leaf_pos = get_random_leaf(access_node_index, client_t.oram_size);
         if (read_path(leaf_pos, address, read_data, ctx) <= 0) {
-            log_f("Access %d from error", address);
+            log_normal("Access %d from error", address);
             return -1;
         }
         block = malloc(sizeof(stash_block));
         block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
         block->address = address;
         memcpy(block->data, read_data, ORAM_BLOCK_SIZE);
-        log_f("Access %d from Server", address);
         for (i = 0;i < client_t.backup_count;i++) {
             block->bucket_id[i] = position_new[i];
             client_t.position_map[address * client_t.backup_count + i] = position_new[i];
         }
         block->evict_count = client_t.backup_count;
+        block->write_after_evict = 0;
+        if (op == ORAM_ACCESS_READ)
+            memcpy(data, block->data, ORAM_BLOCK_SIZE);
+        else
+            memcpy(block->data, data, ORAM_BLOCK_SIZE);
         add_to_stash(client_t.stash, block);
         //DO NOT Reshuffle in the first time
         client_t.client_storage[access_node_id].round = (++client_t.client_storage[access_node_id].round) % ORAM_RESHUFFLE_RATE;
@@ -253,14 +256,10 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
         pthread_mutex_lock(&client_t.mutex_counter);
         client_t.node_access_counter[access_node_id]--;
         pthread_mutex_unlock(&client_t.mutex_counter);
-        if (op == ORAM_ACCESS_READ)
-            memcpy(data, block->data, ORAM_BLOCK_SIZE);
-        else
-            memcpy(block->data, data, ORAM_BLOCK_SIZE);
         close(ctx->sock);
     }
     else {
-        log_f("access %d from stash", address);
+        log_normal("access %d from stash", address);
     }
     return 0;
 }
@@ -276,10 +275,10 @@ int oram_server_init(int bucket_size, client_storage_ctx *ctx, oram_init_op op) 
     int sock = sock_connect_init(&ctx->server_addr, ctx->addrlen);
     memcpy(sock_init_ctx->storage_key, ctx->storage_key, ORAM_STORAGE_KEY_LEN);
     sock_send_recv(sock, buf, buf, ORAM_SOCKET_INIT_SIZE, ORAM_SOCKET_INIT_SIZE_R);
-    log_f("Init Request to Server");
+    log_sys("Init Request to Server");
     close(sock);
     if (sock_init_ctx_r->status == SOCKET_RESPONSE_FAIL) {
-        log_f("Init Fail, Msg:%s", sock_init_ctx_r->err_msg);
+        log_sys("Init Fail, Msg:%s", sock_init_ctx_r->err_msg);
         return -1;
     }
     else
@@ -287,7 +286,7 @@ int oram_server_init(int bucket_size, client_storage_ctx *ctx, oram_init_op op) 
 }
 
 void evict_path(access_ctx *ctx) {
-    log_f("evict path");
+    log_detail("evict path %d", ctx->access_node);
     unsigned char socket_buf[ORAM_SOCKET_BUFFER];
     int pos_run;
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
@@ -314,7 +313,7 @@ void early_reshuffle(int pos, access_ctx *ctx) {
     for (i = 0, pos_run = pos;; pos_run = (pos_run - 1) >> 1, ++i) {
         //Notice that read counter in client is always one less
         if (ctx->metadata_counter[i] >= ORAM_BUCKET_DUMMY - 1) {
-            log_f("early reshuffle %d on pos %d", pos_run, pos_run);
+            log_detail("early reshuffle %d on pos %d", pos_run, pos_run);
             read_bucket_to_stash(ctx, pos_run, socket_buf);
             write_bucket_to_server(ctx, pos_run, socket_buf);
         }
@@ -401,6 +400,7 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
                 block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
                 block->address = address_position_map[base_addr + i][w + 1];
                 block->bucket_id[0] = base_addr + i;
+                block->write_after_evict = 0;
                 int u,v;
                 for (u = 0, v = 1;u < client_t.backup_count;u++) {
                     if (client_t.position_map[block->address * client_t.backup_count + u] != block->bucket_id[0]) {
@@ -511,7 +511,6 @@ int listen_accept(oram_client_args *args) {
     client_t.queue = malloc(sizeof(oram_request_queue));
     client_t.queue->queue_hash = NULL;
     client_t.queue->queue_list = NULL;
-    client_ctx *client = &client_t;
     sem_init(&client_t.queue->queue_semaphore, 0, 0);
     pthread_mutex_init(&client_t.queue->queue_mutex, NULL);
 
@@ -522,7 +521,7 @@ int listen_accept(oram_client_args *args) {
 
     struct sockaddr_in tem_addr;
     socklen_t tem_addrlen;
-    log_f("Midware Started.");
+    log_sys("Midware Started.");
     while (client_t.running) {
         int sock_recv = accept(client_t.server_sock, (struct sockaddr *)&tem_addr, &tem_addrlen);
         add_to_queue(sock_recv, client_t.queue);
@@ -556,6 +555,8 @@ void * worker_func(void *args) {
         }
         for (call_back_list = queue_block->call_back_list; call_back_list != NULL;call_back_list = call_back_list->next_l) {
             find_edit_by_address(client_t.stash, call_back_list->address, call_back_list->op, call_back_list->data);
+            memcpy(access_r->data, call_back_list->data, ORAM_BLOCK_SIZE);
+            sock_standard_send(call_back_list->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R);
         }
         stash_block_unlock(client_t.stash, queue_block->address);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
@@ -584,6 +585,7 @@ int add_to_queue(int sock, oram_request_queue *queue) {
     //Block request and add request to callback list
     if (call_back_head) {
         LL_APPEND(call_back_head->call_back_list, block);
+        log_detail("already exist, wait for finishing");
         pthread_mutex_unlock(&queue->queue_mutex);
     } else {
         HASH_ADD_INT(queue->queue_hash, address, block);
@@ -604,6 +606,7 @@ int client_access(int address, oram_access_op op,unsigned char data[], oram_node
     struct sockaddr_in tem_addr;
     socklen_t len;
     sock_init_byhost(&tem_addr, &len, &sock, pair->host, pair->port, 0);
+    log_f("accessing %d", address);
     sock_send_recv(sock, buf, buf, ORAM_SOCKET_ACCESS_SIZE, ORAM_SOCKET_ACCESS_SIZE_R);
     memcpy(data, access_sock_r->data, ORAM_BLOCK_SIZE);
     return 0;

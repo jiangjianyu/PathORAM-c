@@ -13,6 +13,8 @@
 
 #define ORAM_BLOCK_SIZE 4096
 
+#define ORAM_DEBUG_LEVEL 0
+
 typedef enum {
     ORAM_ACCESS_READ = 0,
     ORAM_ACCESS_WRITE = 1

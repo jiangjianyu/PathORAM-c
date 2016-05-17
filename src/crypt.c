@@ -6,20 +6,44 @@
 #include <unistd.h>
 #include "crypt.h"
 #include "log.h"
+int sock_bug;
+//#define RAMDOM_WRITE
+//#define RAMDOM_READ
+
+void get_random_bytes(unsigned char buff[], int len) {
+#ifdef RAMDOM_READ
+    read(sock_bug, buff, len);
+#else
+    randombytes_buf(buff, len);
+#ifdef RAMDOM_WRITE
+    write(sock_bug, buff, len);
+#endif
+#endif
+}
 
 void gen_crypt_pair(crypt_ctx *ctx) {
-    randombytes_buf(ctx->nonce, ORAM_CRYPT_NONCE_LEN);
+    get_random_bytes(ctx->nonce, ORAM_CRYPT_NONCE_LEN);
 //    randombytes_buf(ctx->key, ORAM_CRYPT_KEY_LEN);
     memcpy(ctx->key, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
 }
 
 void crypt_init(unsigned char key[]) {
+#ifdef RAMDOM_READ
+    sock_bug = open("random.k", O_RDONLY);
+    if (sock_bug < 0) {
+        log_f("file not exists");
+    }
+#else
+#ifdef RAMDOM_WRITE
+    sock_bug = open("random.k", O_WRONLY|O_CREAT,S_IRUSR|S_IWUSR);
+#endif
+#endif
     cr_ctx = malloc(sizeof(crypt_ctx));
     bzero(cr_ctx, sizeof(crypt_ctx));
     if (key[0] == 0) {
         int r = open(ORAM_KEY_FILE, O_RDONLY);
         if (r < 0)
-            randombytes_buf(cr_ctx->key, ORAM_CRYPT_KEY_LEN);
+            get_random_bytes(cr_ctx->key, ORAM_CRYPT_KEY_LEN);
         else {
             log_f("loading key from file");
             read(r, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
@@ -35,31 +59,40 @@ void crypt_init(unsigned char key[]) {
         write(fd, cr_ctx->key, ORAM_CRYPT_KEY_LEN);
         close(fd);
     }
-    randombytes_buf(cr_ctx->nonce, ORAM_CRYPT_NONCE_LEN);
+    get_random_bytes(cr_ctx->nonce, ORAM_CRYPT_NONCE_LEN);
     log_f("Cryptographic Key Init");
 }
 
 int get_random(int range) {
-    return randombytes_uniform(range);
+    int i;
+#ifdef RAMDOM_READ
+    read(sock_bug, &i, sizeof(int));
+#else
+    i = randombytes_uniform(range);
+#ifdef RAMDOM_WRITE
+    write(sock_bug, &i, sizeof(int));
+#endif
+#endif
+    return i;
 }
 
 void get_random_pair(int node_count, int backup, int oram_size, int random[]) {
     int node[backup], node_index[backup], i;
     for (i = 0;i < backup;i++) {
         //Addresses are distributed into different districts
-        node[i] = randombytes_uniform(node_count);
+        node[i] = get_random(node_count);
         node[i] += node_count * i;
-        node_index[i] = randombytes_uniform(oram_size);
+        node_index[i] = get_random(oram_size);
         random[i] = node[i] * oram_size + node_index[i];
     }
 }
 
 void get_random_key(char *key) {
-    randombytes_buf(key, ORAM_STORAGE_KEY_LEN);
+    get_random_bytes(key, ORAM_STORAGE_KEY_LEN);
 }
 
 int get_random_but(int range, int but) {
-    int random = randombytes_uniform(range);
+    int random = get_random(range);
     if (random == but)
         return random + 1;
     return random;

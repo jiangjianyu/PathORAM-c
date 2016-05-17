@@ -18,12 +18,15 @@ static void sig_handler(int signo) {
 }
 
 int main (int argc, char* argv[]) {
-    int f[2000];
+    int f[4000];
     oram_args_t *args = malloc(sizeof(oram_args_t));
     args_parse(args, argc, argv);
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     if (args->mode == ORAM_MODE_SERVER) {
+        unsigned char k[ORAM_CRYPT_KEY_LEN];
+        sprintf(k, "ORAM");
+        crypt_init(k);
         if (args->daemon == ORAM_DAEMON_STOP) {
             if (daemon_stop(args) != 0) {
                 errf("cannot stop");
@@ -53,9 +56,10 @@ int main (int argc, char* argv[]) {
         oram_client_args ar;
 //        if (client_init(&ctx, &ar) < 0)
 //            return -1;
+        sprintf(ar.key, "ORAM");
         ar.host = "127.0.0.1";
         ar.port = 30000;
-        ar.worker = 4;
+        ar.worker = 1;
         ar.node_list = calloc(4 ,sizeof(oram_node_pair));
         ar.node_list[0].host = "127.0.0.1";
         ar.node_list[1].host = "127.0.0.1";
@@ -78,17 +82,17 @@ int main (int argc, char* argv[]) {
         oram_node_pair pair;
         pair.host = "127.0.0.1";
         pair.port = 30000;
-        for (i = 0;i < 100;i++) {
-            data[0] = i;
+        for (i = 0;i < 4000;i++) {
+            data[0] = i % 256;
             client_access(i, ORAM_ACCESS_WRITE, data, &pair);
         }
-        for (i = 0;i < 100;i++) {
+        for (i = 0;i < 4000;i++) {
             client_access(i, ORAM_ACCESS_READ, data, &pair);
             f[i] = data[0];
         }
-        for (i = 0;i < 100;i++) {
-            log_f("assert %d == %d", i, f[i]);
-            assert(f[i] == i);
+        for (i = 0;i < 4000;i++) {
+            log_f("assert %d == %d, bool %d", i, f[i], f[i] == i % 256);
+            assert(f[i] == i % 256);
         }
     }
     return 0;
