@@ -5,11 +5,16 @@
 #ifndef PATHORAM_BUCKET_H
 #define PATHORAM_BUCKET_H
 
+#include <pathoram/uthash.h>
+#include <semaphore.h>
 #include "crypt.h"
 #include "bucket.h"
 
 #define ORAM_FILE_BUCKET_FORMAT "ORAM_BUCKET_%d.bucket"
 #define ORAM_FILE_META_FORMAT "ORAM_BUCKET.meta"
+
+#define ORAM_TOP_CACHE_SIZE 1000
+#define ORAM_PRE_CACHE_SIZE 400
 
 typedef struct {
     int address[ORAM_BUCKET_REAL];
@@ -35,6 +40,24 @@ typedef struct {
     unsigned char encrypt_metadata[ORAM_CRYPT_META_SIZE];
     unsigned char data[ORAM_BUCKET_SIZE][ORAM_CRYPT_DATA_SIZE];
 } oram_bucket;
+
+typedef struct {
+    int bucket_id;
+    int count;
+    UT_hash_handle hh;
+} oram_evict_block;
+
+typedef struct oram_evict_list_block{
+    oram_evict_block *evict_block;
+    struct oram_evict_list_block *next_l;
+} oram_evict_list_block;
+
+typedef struct {
+    oram_evict_block *hash_queue;
+    oram_evict_list_block *list_queue;
+    sem_t queue_semaphore;
+    pthread_mutex_t queue_mutex;
+} oram_evict_queue;
 
 #define ORAM_META_SIZE sizeof(oram_bucket_metadata)
 
@@ -65,8 +88,6 @@ void evict_to_disk(storage_ctx *ctx, int but);
 void free_server(storage_ctx *ctx);
 
 oram_bucket* new_bucket();
-
-oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx);
 
 
 #endif //PATHORAM_BUCKET_H

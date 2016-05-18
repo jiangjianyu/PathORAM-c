@@ -71,12 +71,3 @@ oram_bucket* new_bucket() {
     memset(ne->valid_bits, 1, sizeof(ne->valid_bits));
     return ne;
 }
-
-oram_bucket* get_bucket(int bucket_id, storage_ctx *ctx) {
-    if (ctx->bucket_list[bucket_id] == 0) {
-        ctx->bucket_list[bucket_id] = read_bucket_from_file(bucket_id);
-        ctx->mem_counter++;
-        evict_to_disk(ctx, bucket_id);
-    }
-    return ctx->bucket_list[bucket_id];
-}

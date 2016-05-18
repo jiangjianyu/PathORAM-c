@@ -10,32 +10,73 @@
 #include "server.h"
 #include "log.h"
 #include "utlist.h"
-#include "socket.h"
+#include "bucket.h"
 
-void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
+void add_to_evict(oram_evict_queue *queue, int bucket_id) {
+    oram_evict_block *evict_block;
+    oram_evict_list_block *evict_list_block;
+    int exist = 1;
+    pthread_mutex_lock(&queue->queue_mutex);
+    HASH_FIND_INT(queue->hash_queue, &bucket_id, evict_block);
+    if (!evict_block) {
+        evict_block = malloc(sizeof(oram_evict_block));
+        evict_block->count = 0;
+        evict_block->bucket_id = bucket_id;
+        HASH_ADD_INT(queue->hash_queue, bucket_id, evict_block);
+        exist = 0;
+    }
+    evict_block->count++;
+    evict_list_block = malloc(sizeof(oram_evict_list_block));
+    evict_list_block->next_l = NULL;
+    evict_list_block->evict_block = evict_block;
+    LL_APPEND(queue->list_queue, evict_list_block);
+    pthread_mutex_unlock(&queue->queue_mutex);
+    //Only signal when new bucket is evict
+    if (!exist)
+        sem_post(&queue->queue_semaphore);
+}
+
+oram_bucket* get_bucket(int bucket_id, server_ctx *sv_ctx) {
+    storage_ctx *ctx = sv_ctx->sto_ctx;
+    if (ctx->bucket_list[bucket_id] == 0) {
+        ctx->bucket_list[bucket_id] = read_bucket_from_file(bucket_id);
+        add_to_evict(sv_ctx->evict_queue, bucket_id);
+    }
+    return ctx->bucket_list[bucket_id];
+}
+
+void prefetch_bucket(int bucket_id, server_ctx *sv_ctx) {
+    storage_ctx *ctx = sv_ctx->sto_ctx;
+    if (ctx->bucket_list[bucket_id] == 0) {
+        ctx->bucket_list[bucket_id] = read_bucket_from_file(bucket_id);
+    }
+    add_to_evict(sv_ctx->evict_queue, bucket_id);
+}
+
+void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, server_ctx *ctx) {
     //TODO Check Valid Bits To Decrease Bandwidth
     log_normal("REQUEST->Read Bucket %d", bucket_id);
-    oram_bucket *bucket = get_bucket(bucket_id, sto_ctx);
+    oram_bucket *bucket = get_bucket(bucket_id, ctx);
     memcpy(&read_bucket_ctx->bucket, bucket, sizeof(oram_bucket));
     read_bucket_ctx->bucket_id = bucket_id;
 }
 
-void write_bucket(int bucket_id, socket_write_bucket *sock_write, storage_ctx *sto_ctx) {
+void write_bucket(int bucket_id, socket_write_bucket *sock_write, server_ctx *ctx) {
     oram_bucket *bucket = &sock_write->bucket;
     log_normal("REQUEST->Write Bucket %d", bucket_id);
-    oram_bucket *bucket_sto = get_bucket(bucket_id, sto_ctx);
+    oram_bucket *bucket_sto = get_bucket(bucket_id, ctx);
     memcpy(bucket_sto, bucket, sizeof(oram_bucket));
     bucket_sto->read_counter = 0;
     memset(bucket_sto->valid_bits, 1, sizeof(bucket_sto->valid_bits));
 }
 
-void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx) {
+void get_metadata(int pos, socket_get_metadata_r *meta_ctx, server_ctx *ctx) {
     log_normal("REQUEST->Get Meta, POS:%d", pos);
     meta_ctx->pos = pos;
     oram_bucket *bucket;
     int i = 0;
     for (; ; pos = (pos - 1) >> 1, ++i) {
-        bucket = get_bucket(pos, sto_ctx);
+        bucket = get_bucket(pos, ctx);
         memcpy(meta_ctx->metadata[i].encrypt_metadata, bucket->encrypt_metadata, ORAM_CRYPT_META_SIZE);
         meta_ctx->metadata[i].read_counter = bucket->read_counter;
         memcpy(meta_ctx->metadata[i].valid_bits, bucket->valid_bits, sizeof(bucket->valid_bits));
@@ -44,7 +85,7 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
     }
 }
 
-void read_block(int pos, socket_read_block *read, socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
+void read_block(int pos, socket_read_block *read, socket_read_block_r *read_block_ctx, server_ctx *ctx) {
     int *offsets = read->offsets;
     log_normal("REQUEST->Read Block, POS:%d", pos);
     int i = 0, j, pos_run = pos;
@@ -53,7 +94,7 @@ void read_block(int pos, socket_read_block *read, socket_read_block_r *read_bloc
     bzero(return_block, ORAM_CRYPT_DATA_SIZE);
     for (; ; pos_run = (pos_run - 1) >> 1, ++i) {
         // NO Memcpy here to save time
-        bucket = get_bucket(pos_run, sto_ctx);
+        bucket = get_bucket(pos_run, ctx);
         bucket->valid_bits[offsets[i]] = 0;
         bucket->read_counter++;
         //TODO convert char to int to decrease xor
@@ -68,7 +109,8 @@ void read_block(int pos, socket_read_block *read, socket_read_block_r *read_bloc
     memcpy(read_block_ctx->data, return_block, ORAM_CRYPT_DATA_SIZE);
 }
 
-int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]) {
+int server_create(int size, int max_mem, server_ctx *ctx, char key[]) {
+    storage_ctx *sto_ctx = ctx->sto_ctx;
     log_sys("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
     sto_ctx->size = size;
@@ -80,17 +122,18 @@ int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]) {
     for (; i <= size; i++) {
         sto_ctx->bucket_list[i] = new_bucket();
         sto_ctx->mem_counter++;
-        evict_to_disk(sto_ctx, i);
+        add_to_evict(ctx->evict_queue, i);
     }
     return 0;
 }
 
-void mem_check(int pos, storage_ctx *ctx) {
-    if (pos < 0)
+void mem_check(int pos, server_ctx *sv_ctx) {
+    storage_ctx *ctx = sv_ctx->sto_ctx;
+    if (pos < 0 || ctx->size <= 0)
         return;
     int pos_run;
     for (pos_run = pos;pos_run != 0;pos_run = (pos_run - 1) >> 1) {
-        get_bucket(pos_run, ctx);
+        prefetch_bucket(pos_run, sv_ctx);
     }
 }
 
@@ -191,7 +234,7 @@ void * func_pre(void *args) {
             }
             queue_block->buff = sock_ctx->buf;
             queue_block->buff_r = sock_ctx_r->buf;
-//            mem_check(queue_block->pos, ctx->sto_ctx);
+            mem_check(queue_block->pos, ctx);
             add_to_server_queue(queue_block, ctx->main_queue);
 //            pthread_mutex_lock(&ctx->main_queue->queue_mutex);
             while (queue_block->data_ready == 0)
@@ -201,6 +244,7 @@ void * func_pre(void *args) {
             sock_standard_send(queue_block->sock, buff_r, send_len);
         }
     }
+    return 0;
 }
 
 //TODO lock_function
@@ -235,7 +279,7 @@ void * func_main(void *args) {
                     }
                     else {
                         free_server(ctx->sto_ctx);
-                        status = server_create(init_ctx->size, ctx->args->max_mem, ctx->sto_ctx, init_ctx->storage_key);
+                        status = server_create(init_ctx->size, ctx->args->max_mem, ctx, init_ctx->storage_key);
                     }
                 }
                 else if (op_main == SOCKET_OP_LOAD) {
@@ -266,23 +310,54 @@ void * func_main(void *args) {
                     init_ctx_r->status = SOCKET_RESPONSE_FAIL;
                 break;
             case SOCKET_READ_BUCKET:
-                read_bucket(queue_block->pos, (socket_read_bucket_r *)queue_block->buff_r, ctx->sto_ctx);
+                read_bucket(queue_block->pos, (socket_read_bucket_r *)queue_block->buff_r, ctx);
                 break;
             case SOCKET_WRITE_BUCKET:
-                write_bucket(queue_block->pos, (socket_write_bucket *)queue_block->buff, ctx->sto_ctx);
+                write_bucket(queue_block->pos, (socket_write_bucket *)queue_block->buff, ctx);
                 break;
             case SOCKET_GET_META:
-                get_metadata(queue_block->pos, (socket_get_metadata_r *)queue_block->buff_r, ctx->sto_ctx);
+                get_metadata(queue_block->pos, (socket_get_metadata_r *)queue_block->buff_r, ctx);
                 break;
             case SOCKET_READ_BLOCK:
                 read_block(queue_block->pos, (socket_read_block *)queue_block->buff,
-                           (socket_read_block_r *)queue_block->buff_r, ctx->sto_ctx);
+                           (socket_read_block_r *)queue_block->buff_r, ctx);
                 break;
             default:
                 break;
         }
         queue_block->data_ready = 1;
     }
+    return 0;
+}
+
+void * func_evict(void *args) {
+    server_ctx *ctx = (server_ctx *)args;
+    int found = 0;
+    oram_evict_list_block *list_block;
+    while (ctx->running) {
+        sem_wait(&ctx->evict_queue->queue_semaphore);
+        if (ctx->sto_ctx->mem_counter < ctx->sto_ctx->mem_max)
+            continue;
+        pthread_mutex_lock(&ctx->evict_queue->queue_mutex);
+        while (!found) {
+            list_block = ctx->evict_queue->list_queue;
+            if (list_block == 0) {
+                err("error in queue");
+                pthread_mutex_unlock(&ctx->evict_queue->queue_mutex);
+                break;
+            }
+            LL_DELETE(ctx->evict_queue->list_queue, list_block);
+            free(list_block);
+            if (list_block->evict_block->count > 1) {
+                list_block->evict_block->count--;
+            } else {
+                free(list_block->evict_block);
+                found = 1;
+            }
+        }
+        pthread_mutex_unlock(&ctx->evict_queue->queue_mutex);
+    }
+    return 0;
 }
 
 //TODO USE LESS SHARE BUFFER, MORE HEAP
@@ -290,11 +365,12 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
     int i;
     storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
     pthread_t pre_thread[args->worker];
-    pthread_t main_thread;
+    pthread_t main_thread, evict_thread;
     bzero(sv_ctx, sizeof(server_ctx));
     bzero(sto_ctx, sizeof(storage_ctx));
     oram_server_queue_block *queue_block;
     sv_ctx->sto_ctx = sto_ctx;
+    sto_ctx->size = 0;
     sv_ctx->args = args;
     if (sock_init_byhost(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
         return;
@@ -303,11 +379,17 @@ void server_run(oram_args_t *args, server_ctx *sv_ctx) {
     //Init worker
     sv_ctx->pre_queue = malloc(sizeof(oram_server_queue));
     sv_ctx->main_queue = malloc(sizeof(oram_server_queue));
+    sv_ctx->evict_queue = malloc(sizeof(oram_evict_queue));
     init_queue(sv_ctx->pre_queue);
     init_queue(sv_ctx->main_queue);
+    sv_ctx->evict_queue->hash_queue = NULL;
+    sv_ctx->evict_queue->list_queue = NULL;
+    pthread_mutex_init(&sv_ctx->evict_queue->queue_mutex, NULL);
+    sem_init(&sv_ctx->evict_queue->queue_semaphore, 0, 0);
     for (i = 0;i < args->worker;i++)
         pthread_create(&pre_thread[i], NULL, func_pre, (void *)sv_ctx);
     pthread_create(&main_thread, NULL, func_main, (void *)sv_ctx);
+    pthread_create(&evict_thread, NULL, func_evict, (void *)sv_ctx);
     struct sockaddr_in tem_sockaddr;
     socklen_t tem_socklen;
     while (sv_ctx->running == 1) {
