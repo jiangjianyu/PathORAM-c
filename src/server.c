@@ -13,7 +13,10 @@
 #include "bucket.h"
 
 void add_to_evict(oram_evict_queue *queue, int bucket_id) {
-    oram_evict_block *evict_block;
+    //Top Cache
+    if (bucket_id < ORAM_TOP_CACHE_SIZE)
+        return;
+    oram_evict_block *evict_block = NULL;
     oram_evict_list_block *evict_list_block;
     int exist = 1;
     pthread_mutex_lock(&queue->queue_mutex);
@@ -124,6 +127,7 @@ int server_create(int size, int max_mem, server_ctx *ctx, char key[]) {
         sto_ctx->mem_counter++;
         add_to_evict(ctx->evict_queue, i);
     }
+    log_sys("REQUEST FINISH->Init Server, Size:%d buckets", size);
     return 0;
 }
 
@@ -339,21 +343,25 @@ void * func_evict(void *args) {
         if (ctx->sto_ctx->mem_counter < ctx->sto_ctx->mem_max)
             continue;
         pthread_mutex_lock(&ctx->evict_queue->queue_mutex);
+        found = 0;
         while (!found) {
             list_block = ctx->evict_queue->list_queue;
-            if (list_block == 0) {
+            if (list_block == NULL) {
                 err("error in queue");
                 pthread_mutex_unlock(&ctx->evict_queue->queue_mutex);
                 break;
             }
-            LL_DELETE(ctx->evict_queue->list_queue, list_block);
-            free(list_block);
+
             if (list_block->evict_block->count > 1) {
                 list_block->evict_block->count--;
             } else {
+                write_bucket_to_file(list_block->evict_block->bucket_id, ctx->sto_ctx, 0);
+                HASH_DEL(ctx->evict_queue->hash_queue, list_block->evict_block);
                 free(list_block->evict_block);
                 found = 1;
             }
+            LL_DELETE(ctx->evict_queue->list_queue, list_block);
+            free(list_block);
         }
         pthread_mutex_unlock(&ctx->evict_queue->queue_mutex);
     }

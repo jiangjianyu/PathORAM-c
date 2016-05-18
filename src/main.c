@@ -69,7 +69,7 @@ int main (int argc, char* argv[]) {
         ar.save_file = "client.meta";
         ar.load_file = "client.meta";
         crypt_init(ar.key);
-        if (client_create(2, 100, 2, 1, &ar) < 0)
+        if (client_create(2, 6000, 2, 1, &ar) < 0)
             return -1;
 //        if (client_load(&ar, 1) < 0)
 //            return -1;

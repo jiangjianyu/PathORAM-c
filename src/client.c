@@ -5,7 +5,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <stddef.h>
 #include "client.h"
+#include "socket.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -539,27 +541,46 @@ int listen_accept(oram_client_args *args) {
 }
 
 void * worker_func(void *args) {
+    ssize_t r;
     client_ctx *ctx = (client_ctx *)args;
     oram_request_queue_block *queue_block;
+    oram_request_queue_block *queue_block_find;
     oram_request_queue_block *call_back_list;
     unsigned char buf[ORAM_SOCKET_BUFFER];
+    access_ctx access_t;
+    socket_access *access = (socket_access *)buf;
     socket_access_r *access_r = (socket_access_r *)buf;
     while (1) {
         sem_wait(&ctx->queue->queue_semaphore);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
         queue_block = ctx->queue->queue_list;
-        if (queue_block->address == -1) {
-            pthread_mutex_unlock(&ctx->queue->queue_mutex);
-            return 0;
-        }
         if (queue_block != NULL)
             LL_DELETE(ctx->queue->queue_list, queue_block);
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
-        access_ctx access_t;
-        access_t.queue_block = queue_block;
-        oblivious_access(queue_block->address, queue_block->op, queue_block->data, &access_t);
+        r = recv(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE, 0);
+
+        pthread_mutex_lock(&ctx->queue->queue_mutex);
+        HASH_FIND_INT(ctx->queue->queue_hash, &access->address, queue_block_find);
+        queue_block->address = access->address;
+        queue_block->call_back_list = NULL;
+        queue_block->op = access->op;
+        if (queue_block_find) {
+
+            if (queue_block->op == ORAM_ACCESS_WRITE)
+                memcpy(queue_block->data, access->data, ORAM_BLOCK_SIZE);
+            LL_APPEND(queue_block_find->call_back_list,queue_block);
+            pthread_mutex_unlock(&ctx->queue->queue_mutex);
+            continue;
+        }
+        else {
+            HASH_ADD_INT(ctx->queue->queue_hash, address, queue_block);
+        }
+        pthread_mutex_unlock(&ctx->queue->queue_mutex);
+        //Only if same
+        oblivious_access(queue_block->address, queue_block->op, access->data, &access_t);
         access_r->address = queue_block->address;
-        memcpy(access_r->data, queue_block->data, ORAM_BLOCK_SIZE);
+        if (access->op == ORAM_ACCESS_READ)
+            memcpy(access_r->data, queue_block->data, ORAM_BLOCK_SIZE);
         access_r->status = SOCKET_RESPONSE_SUCCESS;
         sock_standard_send(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R);
         //TODO if lock fail ?
@@ -581,44 +602,14 @@ void * worker_func(void *args) {
 }
 
 int add_to_queue(int sock, oram_request_queue *queue) {
-    socket_access access_buffer;
-    int r = recv(sock, &access_buffer, ORAM_SOCKET_ACCESS_SIZE, 0);
-    oram_request_queue_block *block = malloc(sizeof(oram_request_queue_block));
-    oram_request_queue_block *call_back_head;
-    block->address = access_buffer.address;
-    block->op = access_buffer.op;
-    block->sock = sock;
-    block->next_l = NULL;
-    if (block->address == -1) {
-        client_t.running = 0;
-        int i;
-        //send more request to make sure all thread stop
-        for (i = 0;i < client_t.backup_count * client_t.node_count * 2;i++) {
-            block = malloc(sizeof(oram_request_queue_block));
-            block->address = -1;
-            pthread_mutex_lock(&queue->queue_mutex);
-            LL_APPEND(queue->queue_list, block);
-            pthread_mutex_unlock(&queue->queue_mutex);
-            sem_post(&queue->queue_semaphore);
-        }
-        return 0;
-    }
-    if (block->op == ORAM_ACCESS_WRITE)
-        memcpy(block->data, access_buffer.data, ORAM_BLOCK_SIZE);
+    oram_request_queue_block *queue_block = malloc(sizeof(oram_request_queue_block));
+    queue_block->sock = sock;
+    queue_block->address = 0;
     pthread_mutex_lock(&queue->queue_mutex);
-    HASH_FIND_INT(queue->queue_hash, &block->address, call_back_head);
-
-    //Block request and add request to callback list
-    if (call_back_head) {
-        LL_APPEND(call_back_head->call_back_list, block);
-        log_detail("already exist, wait for finishing");
-        pthread_mutex_unlock(&queue->queue_mutex);
-    } else {
-        HASH_ADD_INT(queue->queue_hash, address, block);
-        LL_PREPEND(queue->queue_list, block);
-        pthread_mutex_unlock(&queue->queue_mutex);
-        sem_post(&queue->queue_semaphore);
-    }
+    LL_APPEND(queue->queue_list, queue_block);
+    pthread_mutex_unlock(&queue->queue_mutex);
+    sem_post(&queue->queue_semaphore);
+    return 0;
 }
 
 int client_access(int address, oram_access_op op,unsigned char data[], oram_node_pair *pair) {

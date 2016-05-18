@@ -32,7 +32,7 @@ void write_bucket_to_file(int bucket_id, storage_ctx *ctx, int remain_in_mem) {
         ctx->mem_counter--;
     }
     close(fd);
-    log_f("Write Bucket %d to file", bucket_id);
+    log_normal("Write Bucket %d to file", bucket_id);
 }
 
 void flush_buckets(storage_ctx *ctx) {

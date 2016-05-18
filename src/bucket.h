@@ -5,7 +5,7 @@
 #ifndef PATHORAM_BUCKET_H
 #define PATHORAM_BUCKET_H
 
-#include <pathoram/uthash.h>
+#include "uthash.h"
 #include <semaphore.h>
 #include "crypt.h"
 #include "bucket.h"
@@ -13,8 +13,8 @@
 #define ORAM_FILE_BUCKET_FORMAT "ORAM_BUCKET_%d.bucket"
 #define ORAM_FILE_META_FORMAT "ORAM_BUCKET.meta"
 
+//Be careful that the ORAM_TOP_CACHE_SIZE should be less than mem_max
 #define ORAM_TOP_CACHE_SIZE 1000
-#define ORAM_PRE_CACHE_SIZE 400
 
 typedef struct {
     int address[ORAM_BUCKET_REAL];
