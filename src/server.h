@@ -10,25 +10,41 @@
 #include "args.h"
 #include "socket.h"
 
+typedef struct oram_server_queue_block{
+    int sock;
+    socket_type type;
+    int pos;
+    _Bool data_ready;
+    pthread_cond_t cond;
+    unsigned char *buff;
+    unsigned char *buff_r;
+    struct oram_server_queue_block *next_l;
+} oram_server_queue_block;
+
+typedef struct {
+    struct oram_server_queue_block *queue_list;
+    pthread_mutex_t queue_mutex;
+    sem_t queue_semaphore;
+} oram_server_queue;
+
 typedef struct {
     int socket_listen;
-    int socket_data;
-    struct sockaddr_in client_addr;
     socklen_t addrlen;
     struct sockaddr_in server_addr;
     int running;
     storage_ctx *sto_ctx;
-    unsigned char *buff;
-    unsigned char *buff_r;
+    oram_server_queue *pre_queue;
+    oram_server_queue *main_queue;
+    oram_args_t *args;
 } server_ctx;
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx);
 
-void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx);
+void write_bucket(int bucket_id, socket_write_bucket *sock_write, storage_ctx *sto_ctx);
 
 void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx);
 
-void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx);
+void read_block(int pos, socket_read_block *read, socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx);
 
 int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]);
 

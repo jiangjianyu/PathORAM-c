@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "client.h"
-#include "bucket.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -227,6 +226,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
         ctx->storage_ctx = &client_t.client_storage[access_node_id];
         if (address >= client_t.oram_size * client_t.node_count * ORAM_BUCKET_REAL)
             return -1;
+        log_normal("Access %d from server", address);
         get_random_pair(client_t.node_count, client_t.backup_count, client_t.oram_size, position_new);
         leaf_pos = get_random_leaf(access_node_index, client_t.oram_size);
         if (read_path(leaf_pos, address, read_data, ctx) <= 0) {
@@ -265,7 +265,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
 }
 
 int oram_server_init(int bucket_size, client_storage_ctx *ctx, oram_init_op op) {
-    unsigned char buf[4096];
+    unsigned char buf[ORAM_SOCKET_BUFFER];
     socket_ctx *sock_ctx = (socket_ctx *)buf;
     socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
     socket_init_r *sock_init_ctx_r = (socket_init_r *)sock_ctx->buf;
@@ -433,17 +433,15 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
     return 0;
 }
 
-int client_load(int re_init) {
+int client_load(oram_client_args *args ,int re_init) {
     int i;
-    int fd = open(client_t.args->load_file, O_RDONLY);
+    int fd = open(args->load_file, O_RDONLY);
     if (fd < 0) {
         return -1;
     }
     read(fd, &client_t, sizeof(client_t));
     client_t.client_storage = calloc(client_t.node_count * client_t.backup_count, sizeof(client_storage_ctx));
-    for (i = 0;i < client_t.node_count * client_t.backup_count;i++) {
-        read(fd, &client_t.client_storage[i], sizeof(client_storage_ctx));
-    }
+    read(fd, client_t.client_storage, sizeof(client_storage_ctx) * client_t.node_count * client_t.backup_count);
 
     //read position map
     client_t.position_map = calloc(client_t.node_count * client_t.backup_count * client_t.oram_size * ORAM_BUCKET_REAL, sizeof(int));
@@ -457,13 +455,21 @@ int client_load(int re_init) {
     stash_block *block;
     while (r > 0 && total > 0) {
         block = malloc(sizeof(stash_block));
+        block->bucket_id = malloc(client_t.backup_count * sizeof(int));
         r = read(fd, block, sizeof(stash_block));
+        r = read(fd, block->bucket_id, sizeof(int) * client_t.backup_count);
         if (r > 0) {
             bzero(&block->hh, sizeof(block->hh));
             add_to_stash(client_t.stash, block);
         }
         total--;
     }
+
+    client_t.node_access_counter = calloc(client_t.node_count * client_t.backup_count, sizeof(int));
+    pthread_mutex_init(&client_t.mutex_counter, NULL);
+    client_t.args = args;
+
+
     oram_init_op op = SOCKET_OP_LOAD;
     if (re_init == 1)
         op |= SOCKET_OP_REINIT;
@@ -472,6 +478,7 @@ int client_load(int re_init) {
             return -1;
     }
     close(fd);
+    client_t.running = 1;
     return 0;
 }
 
@@ -487,8 +494,7 @@ void client_save(int exit) {
         return;
     }
     write(fd, &client_t, sizeof(client_t));
-    for (i = 0;i < client_t.node_count * client_t.backup_count;i++)
-        write(fd, &sto_ctx[i], sizeof(client_storage_ctx));
+    write(fd, sto_ctx, sizeof(client_storage_ctx) * client_t.node_count * client_t.backup_count);
     write(fd, client_t.position_map, sizeof(int) * client_t.node_count \
                                      * client_t.oram_size * client_t.backup_count \
                                      * ORAM_BUCKET_REAL);
@@ -497,8 +503,10 @@ void client_save(int exit) {
     for (;s != NULL;s = s->hh.next)
         total++;
     write(fd, &total, sizeof(int));
-    for (s = client_t.stash->address_to_stash;s != NULL;s = s->hh.next)
+    for (s = client_t.stash->address_to_stash;s != NULL;s = s->hh.next) {
         write(fd, s, sizeof(stash_block));
+        write(fd, s->bucket_id, sizeof(int) * client_t.backup_count);
+    }
     close(fd);
 }
 
@@ -519,13 +527,14 @@ int listen_accept(oram_client_args *args) {
         pthread_create(&client_t.worker_id[i], NULL, worker_func, (void *)&client_t);
     }
 
-    struct sockaddr_in tem_addr;
-    socklen_t tem_addrlen;
     log_sys("Midware Started.");
     while (client_t.running) {
-        int sock_recv = accept(client_t.server_sock, (struct sockaddr *)&tem_addr, &tem_addrlen);
+        int sock_recv = accept(client_t.server_sock, NULL, NULL);
         add_to_queue(sock_recv, client_t.queue);
     }
+    for (i = 0;i < args->worker;i++)
+        pthread_join(client_t.worker_id[i], NULL);
+    client_save(0);
     return 0;
 }
 
@@ -535,10 +544,14 @@ void * worker_func(void *args) {
     oram_request_queue_block *call_back_list;
     unsigned char buf[ORAM_SOCKET_BUFFER];
     socket_access_r *access_r = (socket_access_r *)buf;
-    while (ctx->running) {
+    while (1) {
         sem_wait(&ctx->queue->queue_semaphore);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
         queue_block = ctx->queue->queue_list;
+        if (queue_block->address == -1) {
+            pthread_mutex_unlock(&ctx->queue->queue_mutex);
+            return 0;
+        }
         if (queue_block != NULL)
             LL_DELETE(ctx->queue->queue_list, queue_block);
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
@@ -576,9 +589,22 @@ int add_to_queue(int sock, oram_request_queue *queue) {
     block->op = access_buffer.op;
     block->sock = sock;
     block->next_l = NULL;
+    if (block->address == -1) {
+        client_t.running = 0;
+        int i;
+        //send more request to make sure all thread stop
+        for (i = 0;i < client_t.backup_count * client_t.node_count * 2;i++) {
+            block = malloc(sizeof(oram_request_queue_block));
+            block->address = -1;
+            pthread_mutex_lock(&queue->queue_mutex);
+            LL_APPEND(queue->queue_list, block);
+            pthread_mutex_unlock(&queue->queue_mutex);
+            sem_post(&queue->queue_semaphore);
+        }
+        return 0;
+    }
     if (block->op == ORAM_ACCESS_WRITE)
         memcpy(block->data, access_buffer.data, ORAM_BLOCK_SIZE);
-
     pthread_mutex_lock(&queue->queue_mutex);
     HASH_FIND_INT(queue->queue_hash, &block->address, call_back_head);
 
@@ -606,7 +632,7 @@ int client_access(int address, oram_access_op op,unsigned char data[], oram_node
     struct sockaddr_in tem_addr;
     socklen_t len;
     sock_init_byhost(&tem_addr, &len, &sock, pair->host, pair->port, 0);
-    log_f("accessing %d", address);
+//    log_f("accessing %d", address);
     sock_send_recv(sock, buf, buf, ORAM_SOCKET_ACCESS_SIZE, ORAM_SOCKET_ACCESS_SIZE_R);
     memcpy(data, access_sock_r->data, ORAM_BLOCK_SIZE);
     return 0;

@@ -20,7 +20,6 @@ extern int verbose_mode;
 
 #define __LOG(o, not_stderr, s...) do {                               \
     if (not_stderr || verbose_mode) {                                 \
-        log_timestamp(o);                                             \
         fprintf(o, s);                                                \
         fprintf(o, "\n");                                             \
         fflush(o);                                                    \

@@ -5,19 +5,24 @@
 #include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <semaphore.h>
+#include <pthread.h>
 #include "server.h"
 #include "log.h"
+#include "utlist.h"
+#include "socket.h"
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, storage_ctx *sto_ctx) {
     //TODO Check Valid Bits To Decrease Bandwidth
-    log_f("REQUEST->Read Bucket %d", bucket_id);
+    log_normal("REQUEST->Read Bucket %d", bucket_id);
     oram_bucket *bucket = get_bucket(bucket_id, sto_ctx);
     memcpy(&read_bucket_ctx->bucket, bucket, sizeof(oram_bucket));
     read_bucket_ctx->bucket_id = bucket_id;
 }
 
-void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {
-    log_f("REQUEST->Write Bucket %d", bucket_id);
+void write_bucket(int bucket_id, socket_write_bucket *sock_write, storage_ctx *sto_ctx) {
+    oram_bucket *bucket = &sock_write->bucket;
+    log_normal("REQUEST->Write Bucket %d", bucket_id);
     oram_bucket *bucket_sto = get_bucket(bucket_id, sto_ctx);
     memcpy(bucket_sto, bucket, sizeof(oram_bucket));
     bucket_sto->read_counter = 0;
@@ -25,7 +30,7 @@ void write_bucket(int bucket_id, oram_bucket *bucket, storage_ctx *sto_ctx) {
 }
 
 void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx) {
-    log_f("REQUEST->Get Meta, POS:%d", pos);
+    log_normal("REQUEST->Get Meta, POS:%d", pos);
     meta_ctx->pos = pos;
     oram_bucket *bucket;
     int i = 0;
@@ -39,8 +44,9 @@ void get_metadata(int pos, socket_get_metadata_r *meta_ctx, storage_ctx *sto_ctx
     }
 }
 
-void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
-    log_f("REQUEST->Read Block, POS:%d", pos);
+void read_block(int pos, socket_read_block *read, socket_read_block_r *read_block_ctx, storage_ctx *sto_ctx) {
+    int *offsets = read->offsets;
+    log_normal("REQUEST->Read Block, POS:%d", pos);
     int i = 0, j, pos_run = pos;
     oram_bucket *bucket;
     unsigned char return_block[ORAM_CRYPT_DATA_SIZE];
@@ -63,7 +69,7 @@ void read_block(int pos, int offsets[], socket_read_block_r *read_block_ctx, sto
 }
 
 int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]) {
-    log_f("REQUEST->Init Server, Size:%d buckets", size);
+    log_sys("REQUEST->Init Server, Size:%d buckets", size);
     int i = 0;
     sto_ctx->size = size;
     sto_ctx->oram_tree_height = log(size + 1) / log(2) + 1;
@@ -79,126 +85,236 @@ int server_create(int size, int max_mem, storage_ctx *sto_ctx, char key[]) {
     return 0;
 }
 
-//TODO USE LESS SHARE BUFFER, MORE HEAP
-void server_run(oram_args_t *args, server_ctx *sv_ctx) {
-    ssize_t r;
-    storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
-    bzero(sv_ctx, sizeof(server_ctx));
-    bzero(sto_ctx, sizeof(storage_ctx));
-    sv_ctx->sto_ctx = sto_ctx;
-    if (sock_init_byhost(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
+void mem_check(int pos, storage_ctx *ctx) {
+    if (pos < 0)
         return;
-    sv_ctx->buff = malloc(ORAM_SOCKET_BUFFER);
-    sv_ctx->buff_r = malloc(ORAM_SOCKET_BUFFER);
-    sv_ctx->running = 1;
-    while (sv_ctx->running == 1) {
-        bzero(sv_ctx->buff, ORAM_SOCKET_BUFFER);
-        bzero(sv_ctx->buff_r, ORAM_SOCKET_BUFFER);
-        sv_ctx->socket_data = accept(sv_ctx->socket_listen,
-                                     (struct sockaddr *) &sv_ctx->client_addr,
-                                     &sv_ctx->addrlen);
-        log_f("User Connected");
+    int pos_run;
+    for (pos_run = pos;pos_run != 0;pos_run = (pos_run - 1) >> 1) {
+        get_bucket(pos_run, ctx);
+    }
+}
+
+void init_queue(oram_server_queue *queue) {
+    queue->queue_list = NULL;
+    pthread_mutex_init(&queue->queue_mutex, NULL);
+    sem_init(&queue->queue_semaphore, 0, 0);
+}
+
+void add_to_server_queue(oram_server_queue_block *block, oram_server_queue *queue) {
+    pthread_mutex_lock(&queue->queue_mutex);
+    LL_APPEND(queue->queue_list, block);
+    pthread_mutex_unlock(&queue->queue_mutex);
+    sem_post(&queue->queue_semaphore);
+}
+
+void * func_pre(void *args) {
+    server_ctx *ctx = (server_ctx *)args;
+    ssize_t r;
+    int send_len;
+    oram_server_queue_block *queue_block;
+    unsigned char *buff = malloc(ORAM_SOCKET_BUFFER);
+    unsigned char *buff_r = malloc(ORAM_SOCKET_BUFFER);
+    socket_ctx *sock_ctx = (socket_ctx *)buff;
+    socket_ctx *sock_ctx_r = (socket_ctx *)buff_r;
+
+    socket_read_bucket *read_bucket_ctx = (socket_read_bucket *) sock_ctx->buf;
+    socket_write_bucket *write_bucket_ctx = (socket_write_bucket *) sock_ctx->buf;
+    socket_read_block *read_block_ctx = (socket_read_block *) sock_ctx->buf;
+    socket_get_metadata *get_metadata_ctx = (socket_get_metadata *) sock_ctx->buf;
+
+    socket_write_bucket_r *write_bucket_ctx_r = (socket_write_bucket_r *) sock_ctx_r->buf;
+
+    while (ctx->running) {
+        sem_wait(&ctx->pre_queue->queue_semaphore);
+        pthread_mutex_lock(&ctx->pre_queue->queue_mutex);
+        queue_block = ctx->pre_queue->queue_list;
+        if (queue_block == NULL) {
+            log_normal("error reading queue");
+            pthread_mutex_unlock(&ctx->pre_queue->queue_mutex);
+            continue;
+        }
+        LL_DELETE(ctx->pre_queue->queue_list, queue_block);
+        pthread_mutex_unlock(&ctx->pre_queue->queue_mutex);
+        pthread_cond_init(&queue_block->cond, NULL);
         while (1) {
-            r = recv(sv_ctx->socket_data, sv_ctx->buff, ORAM_SOCKET_BUFFER, 0);
+//            bzero(buff, ORAM_SOCKET_BUFFER);
+//            bzero(buff_r, ORAM_SOCKET_BUFFER);
+            r = recv(queue_block->sock, buff, ORAM_SOCKET_BUFFER, 0);
+
+            queue_block->data_ready = 0;
             if (r <= 0) {
-                log_f("User Disconnected");
+                log_normal("User Disconnected");
                 break;
             }
-            socket_ctx *sock_ctx = (socket_ctx *) sv_ctx->buff;
-            socket_ctx *sock_ctx_r = (socket_ctx *) sv_ctx->buff_r;
-
-            socket_read_bucket *read_bucket_ctx = (socket_read_bucket *) sock_ctx->buf;
-            socket_write_bucket *write_ctx = (socket_write_bucket *) sock_ctx->buf;
-            socket_read_block *read_block_ctx = (socket_read_block *) sock_ctx->buf;
-            socket_get_metadata *get_metadata_ctx = (socket_get_metadata *) sock_ctx->buf;
-            socket_init *init_ctx = (socket_init *) sock_ctx->buf;
-
-            socket_read_block_r *read_block_ctx_r = (socket_read_block_r *) sock_ctx_r->buf;
-            socket_read_bucket_r *read_bucket_ctx_r = (socket_read_bucket_r *) sock_ctx_r->buf;
-            socket_get_metadata_r *get_metadata_ctx_r = (socket_get_metadata_r *) sock_ctx_r->buf;
-            socket_write_bucket_r *write_bucket_ctx_r = (socket_write_bucket_r *) sock_ctx_r->buf;
-            socket_init_r *init_ctx_r = (socket_init_r *) sock_ctx_r->buf;
+            queue_block->type = sock_ctx->type;
             switch (sock_ctx->type) {
                 case SOCKET_READ_BUCKET:
                     if (r != ORAM_SOCKET_READ_SIZE)
-                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_READ_SIZE);
-                    read_bucket(read_bucket_ctx->bucket_id,
-                                read_bucket_ctx_r, sv_ctx->sto_ctx);
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_READ_SIZE);
                     sock_ctx_r->type = SOCKET_READ_BUCKET;
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_READ_SIZE_R);
+                    send_len = ORAM_SOCKET_READ_SIZE_R;
+                    queue_block->pos = read_bucket_ctx->bucket_id;
                     break;
                 case SOCKET_WRITE_BUCKET:
                     if (r != ORAM_SOCKET_WRITE_SIZE)
-                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_WRITE_SIZE);
-                    //TODO return
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_WRITE_SIZE);
                     sock_ctx_r->type = SOCKET_WRITE_BUCKET;
-                    write_bucket(write_ctx->bucket_id, &write_ctx->bucket, sv_ctx->sto_ctx);
-                    write_bucket_ctx_r->bucket_id = write_ctx->bucket_id;
+                    write_bucket_ctx_r->bucket_id = write_bucket_ctx->bucket_id;
                     write_bucket_ctx_r->type = SOCKET_RESPONSE_SUCCESS;
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_WRITE_SIZE_R);
+                    send_len = ORAM_SOCKET_WRITE_SIZE_R;
+                    queue_block->pos = write_bucket_ctx->bucket_id;
                     break;
                 case SOCKET_GET_META:
                     if (r != ORAM_SOCKET_META_SIZE)
-                        sock_recv_add(sv_ctx->socket_data,sv_ctx->buff, r, ORAM_SOCKET_META_SIZE);
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_META_SIZE);
                     sock_ctx_r->type = SOCKET_GET_META;
-                    get_metadata(get_metadata_ctx->pos, get_metadata_ctx_r, sv_ctx->sto_ctx);
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_META_SIZE_R(sv_ctx->sto_ctx->oram_tree_height));
+                    send_len = ORAM_SOCKET_META_SIZE_R(ctx->sto_ctx->oram_tree_height);
+                    queue_block->pos = get_metadata_ctx->pos;
                     break;
                 case SOCKET_READ_BLOCK:
-                    if (r != ORAM_SOCKET_BLOCK_SIZE(sv_ctx->sto_ctx->oram_tree_height))
-                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_BLOCK_SIZE(sv_ctx->sto_ctx->oram_tree_height));
-                    read_block(read_block_ctx->pos, read_block_ctx->offsets, read_block_ctx_r, sv_ctx->sto_ctx);
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_BLOCK_SIZE_R(sv_ctx->sto_ctx->oram_tree_height));
+                    if (r != ORAM_SOCKET_BLOCK_SIZE(ctx->sto_ctx->oram_tree_height))
+                        sock_recv_add(queue_block->sock, buff, r,
+                                      ORAM_SOCKET_BLOCK_SIZE(ctx->sto_ctx->oram_tree_height));
+                    sock_ctx_r->type = SOCKET_READ_BLOCK;
+                    send_len = ORAM_SOCKET_BLOCK_SIZE_R(ctx->sto_ctx->oram_tree_height);
+                    queue_block->pos = read_block_ctx->pos;
                     break;
                 case SOCKET_INIT:
                     if (r != ORAM_SOCKET_INIT_SIZE)
-                        sock_recv_add(sv_ctx->socket_data, sv_ctx->buff, r, ORAM_SOCKET_INIT_SIZE);
-
-                    int status;
-                    oram_init_op op_main = init_ctx->op & 0x03;
-                    oram_init_op op_re = init_ctx->op & 0x04;
-                    if (op_main == SOCKET_OP_CREATE) {
-                        if (sv_ctx->sto_ctx->size != 0 && op_re != SOCKET_OP_REINIT) {
-                            status = -1;
-                            sprintf(init_ctx_r->err_msg, "Already init.");
-                        }
-                        else {
-                            free_server(sv_ctx->sto_ctx);
-                            status = server_create(init_ctx->size, args->max_mem, sv_ctx->sto_ctx, init_ctx->storage_key);
-                        }
-                    }
-                    else if (op_main == SOCKET_OP_LOAD) {
-                        if (strcmp(sv_ctx->sto_ctx->storage_key, init_ctx->storage_key) == 0)
-                            status = 0;
-                        else {
-                            if (sv_ctx->sto_ctx->size != 0 && op_re != SOCKET_OP_REINIT) {
-                                status = -1;
-                                sprintf(init_ctx_r->err_msg, "Already init.");
-                            }
-                            else {
-                                free_server(sv_ctx->sto_ctx);
-                                if ((status = server_load(sv_ctx, init_ctx->storage_key)) < 0)
-                                    sprintf(init_ctx_r->err_msg, "Key mismatch");
-                            }
-                        }
-                    }
-                    else if (op_main == SOCKET_OP_SAVE) {
-                        status = server_save(sv_ctx->sto_ctx);
-                        sv_ctx->running = 0;
-                    }
-                    else
-                        status = -1;
-
-                    if (status == 0)
-                        init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
-                    else
-                        init_ctx_r->status = SOCKET_RESPONSE_FAIL;
-                    sock_standard_send(sv_ctx->socket_data, sv_ctx->buff_r, ORAM_SOCKET_INIT_SIZE_R);
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_INIT_SIZE);
+                    sock_ctx_r->type = SOCKET_INIT;
+                    send_len = ORAM_SOCKET_INIT_SIZE_R;
+                    queue_block->pos = -1;
                     break;
                 default:
                     break;
             }
+            queue_block->buff = sock_ctx->buf;
+            queue_block->buff_r = sock_ctx_r->buf;
+//            mem_check(queue_block->pos, ctx->sto_ctx);
+            add_to_server_queue(queue_block, ctx->main_queue);
+//            pthread_mutex_lock(&ctx->main_queue->queue_mutex);
+            while (queue_block->data_ready == 0)
+                continue;
+//                pthread_cond_wait(&queue_block->cond, &ctx->main_queue->queue_mutex);
+//            pthread_mutex_unlock(&ctx->main_queue->queue_mutex);
+            sock_standard_send(queue_block->sock, buff_r, send_len);
         }
+    }
+}
+
+//TODO lock_function
+void * func_main(void *args) {
+    server_ctx *ctx = (server_ctx *)args;
+    oram_server_queue_block *queue_block;
+    int status;
+    socket_init *init_ctx;
+    socket_init_r *init_ctx_r;
+
+    while (ctx->running) {
+        sem_wait(&ctx->main_queue->queue_semaphore);
+        pthread_mutex_lock(&ctx->main_queue->queue_mutex);
+        queue_block = ctx->main_queue->queue_list;
+        if (queue_block == NULL) {
+            log_sys("error in main queue");
+            pthread_mutex_unlock(&ctx->main_queue->queue_mutex);
+            continue;
+        }
+        LL_DELETE(ctx->main_queue->queue_list, queue_block);
+        pthread_mutex_unlock(&ctx->main_queue->queue_mutex);
+        switch (queue_block->type) {
+            case SOCKET_INIT:
+                init_ctx = (socket_init *) queue_block->buff;
+                init_ctx_r = (socket_init_r *) queue_block->buff_r;
+                oram_init_op op_main = init_ctx->op & 0x03;
+                oram_init_op op_re = init_ctx->op & 0x04;
+                if (op_main == SOCKET_OP_CREATE) {
+                    if (ctx->sto_ctx->size != 0 && op_re != SOCKET_OP_REINIT) {
+                        status = -1;
+                        sprintf(init_ctx_r->err_msg, "Already init.");
+                    }
+                    else {
+                        free_server(ctx->sto_ctx);
+                        status = server_create(init_ctx->size, ctx->args->max_mem, ctx->sto_ctx, init_ctx->storage_key);
+                    }
+                }
+                else if (op_main == SOCKET_OP_LOAD) {
+                    if (strcmp(ctx->sto_ctx->storage_key, init_ctx->storage_key) == 0)
+                        status = 0;
+                    else {
+                        if (ctx->sto_ctx->size != 0 && op_re != SOCKET_OP_REINIT) {
+                            status = -1;
+                            sprintf(init_ctx_r->err_msg, "Already init.");
+                        }
+                        else {
+                            free_server(ctx->sto_ctx);
+                            if ((status = server_load(ctx, init_ctx->storage_key)) < 0)
+                                sprintf(init_ctx_r->err_msg, "Key mismatch");
+                        }
+                    }
+                }
+                else if (op_main == SOCKET_OP_SAVE) {
+                    status = server_save(ctx->sto_ctx);
+                    ctx->running = 0;
+                }
+                else
+                    status = -1;
+
+                if (status == 0)
+                    init_ctx_r->status = SOCKET_RESPONSE_SUCCESS;
+                else
+                    init_ctx_r->status = SOCKET_RESPONSE_FAIL;
+                break;
+            case SOCKET_READ_BUCKET:
+                read_bucket(queue_block->pos, (socket_read_bucket_r *)queue_block->buff_r, ctx->sto_ctx);
+                break;
+            case SOCKET_WRITE_BUCKET:
+                write_bucket(queue_block->pos, (socket_write_bucket *)queue_block->buff, ctx->sto_ctx);
+                break;
+            case SOCKET_GET_META:
+                get_metadata(queue_block->pos, (socket_get_metadata_r *)queue_block->buff_r, ctx->sto_ctx);
+                break;
+            case SOCKET_READ_BLOCK:
+                read_block(queue_block->pos, (socket_read_block *)queue_block->buff,
+                           (socket_read_block_r *)queue_block->buff_r, ctx->sto_ctx);
+                break;
+            default:
+                break;
+        }
+        queue_block->data_ready = 1;
+    }
+}
+
+//TODO USE LESS SHARE BUFFER, MORE HEAP
+void server_run(oram_args_t *args, server_ctx *sv_ctx) {
+    int i;
+    storage_ctx *sto_ctx = malloc(sizeof(storage_ctx));
+    pthread_t pre_thread[args->worker];
+    pthread_t main_thread;
+    bzero(sv_ctx, sizeof(server_ctx));
+    bzero(sto_ctx, sizeof(storage_ctx));
+    oram_server_queue_block *queue_block;
+    sv_ctx->sto_ctx = sto_ctx;
+    sv_ctx->args = args;
+    if (sock_init_byhost(&sv_ctx->server_addr, &sv_ctx->addrlen, &sv_ctx->socket_listen, args->host, args->port, 1) < 0)
+        return;
+    sv_ctx->running = 1;
+
+    //Init worker
+    sv_ctx->pre_queue = malloc(sizeof(oram_server_queue));
+    sv_ctx->main_queue = malloc(sizeof(oram_server_queue));
+    init_queue(sv_ctx->pre_queue);
+    init_queue(sv_ctx->main_queue);
+    for (i = 0;i < args->worker;i++)
+        pthread_create(&pre_thread[i], NULL, func_pre, (void *)sv_ctx);
+    pthread_create(&main_thread, NULL, func_main, (void *)sv_ctx);
+    struct sockaddr_in tem_sockaddr;
+    socklen_t tem_socklen;
+    while (sv_ctx->running == 1) {
+        queue_block = (oram_server_queue_block *)malloc(sizeof(oram_server_queue_block));
+        queue_block->sock = accept(sv_ctx->socket_listen, (struct sockaddr *)&tem_sockaddr, &tem_socklen);
+        log_normal("New User Connected.");
+        add_to_server_queue(queue_block, sv_ctx->pre_queue);
     }
 }
 

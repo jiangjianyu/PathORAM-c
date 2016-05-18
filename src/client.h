@@ -106,7 +106,7 @@ void early_reshuffle(int pos, access_ctx *ctx);
 
 int client_create(int node_count,int size_bucket, int backup, int re_init, oram_client_args *args);
 
-int client_load(int re_init);
+int client_load(oram_client_args *args ,int re_init);
 
 /*Format of serilized client data
 

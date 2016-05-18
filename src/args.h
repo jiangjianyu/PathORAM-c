@@ -28,6 +28,7 @@ typedef enum {
 typedef struct {
     int max_mem;
     int port;
+    int worker;
     char *host;
     oram_mode mode;
     oram_daemon daemon;
