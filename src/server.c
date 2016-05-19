@@ -112,6 +112,22 @@ void read_block(int pos, socket_read_block *read, socket_read_block_r *read_bloc
     memcpy(read_block_ctx->data, return_block, ORAM_CRYPT_DATA_SIZE);
 }
 
+void free_server(server_ctx *ctx) {
+    if (ctx->sto_ctx->size == 0)
+        return;
+    oram_evict_block *evict_block = ctx->evict_queue->hash_queue;
+    oram_evict_list_block *evict_list_block = ctx->evict_queue->list_queue;
+    for (;evict_block != NULL;evict_block = evict_block->hh.next) {
+        free(evict_block);
+    }
+    for (;evict_list_block != NULL;evict_list_block = evict_list_block->next_l) {
+        free(evict_list_block);
+    }
+    ctx->evict_queue->list_queue = NULL;
+    ctx->evict_queue->hash_queue = NULL;
+    free_storage(ctx->sto_ctx);
+}
+
 int server_create(int size, int max_mem, server_ctx *ctx, char key[]) {
     storage_ctx *sto_ctx = ctx->sto_ctx;
     log_sys("REQUEST->Init Server, Size:%d buckets", size);
@@ -282,7 +298,7 @@ void * func_main(void *args) {
                         sprintf(init_ctx_r->err_msg, "Already init.");
                     }
                     else {
-                        free_server(ctx->sto_ctx);
+                        free_server(ctx);
                         status = server_create(init_ctx->size, ctx->args->max_mem, ctx, init_ctx->storage_key);
                     }
                 }
@@ -295,7 +311,7 @@ void * func_main(void *args) {
                             sprintf(init_ctx_r->err_msg, "Already init.");
                         }
                         else {
-                            free_server(ctx->sto_ctx);
+                            free_server(ctx);
                             if ((status = server_load(ctx, init_ctx->storage_key)) < 0)
                                 sprintf(init_ctx_r->err_msg, "Key mismatch");
                         }

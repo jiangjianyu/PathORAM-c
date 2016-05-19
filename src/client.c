@@ -541,15 +541,15 @@ int listen_accept(oram_client_args *args) {
 }
 
 void * worker_func(void *args) {
-    ssize_t r;
     client_ctx *ctx = (client_ctx *)args;
     oram_request_queue_block *queue_block;
     oram_request_queue_block *queue_block_find;
     oram_request_queue_block *call_back_list;
     unsigned char buf[ORAM_SOCKET_BUFFER];
+    unsigned char buf_r[ORAM_SOCKET_BUFFER];
     access_ctx access_t;
     socket_access *access = (socket_access *)buf;
-    socket_access_r *access_r = (socket_access_r *)buf;
+    socket_access_r *access_r = (socket_access_r *)buf_r;
     while (1) {
         sem_wait(&ctx->queue->queue_semaphore);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
@@ -557,15 +557,13 @@ void * worker_func(void *args) {
         if (queue_block != NULL)
             LL_DELETE(ctx->queue->queue_list, queue_block);
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
-        r = recv(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE, 0);
-
+        sock_standard_recv(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
         HASH_FIND_INT(ctx->queue->queue_hash, &access->address, queue_block_find);
         queue_block->address = access->address;
         queue_block->call_back_list = NULL;
         queue_block->op = access->op;
         if (queue_block_find) {
-
             if (queue_block->op == ORAM_ACCESS_WRITE)
                 memcpy(queue_block->data, access->data, ORAM_BLOCK_SIZE);
             LL_APPEND(queue_block_find->call_back_list,queue_block);
@@ -576,25 +574,27 @@ void * worker_func(void *args) {
             HASH_ADD_INT(ctx->queue->queue_hash, address, queue_block);
         }
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
-        //Only if same
-        oblivious_access(queue_block->address, queue_block->op, access->data, &access_t);
+
+        oblivious_access(access->address, access->op, access->data, &access_t);
         access_r->address = queue_block->address;
         if (access->op == ORAM_ACCESS_READ)
-            memcpy(access_r->data, queue_block->data, ORAM_BLOCK_SIZE);
+            memcpy(access_r->data, access->data, ORAM_BLOCK_SIZE);
         access_r->status = SOCKET_RESPONSE_SUCCESS;
-        sock_standard_send(queue_block->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R);
+        sock_standard_send(queue_block->sock, buf_r, ORAM_SOCKET_ACCESS_SIZE_R);
         //TODO if lock fail ?
         if (stash_block_lock(client_t.stash, queue_block->address, ORAM_LOCK_READ) == 0) {
             err("error in locking stash");
         }
         for (call_back_list = queue_block->call_back_list; call_back_list != NULL;call_back_list = call_back_list->next_l) {
             find_edit_by_address(client_t.stash, call_back_list->address, call_back_list->op, call_back_list->data);
-            memcpy(access_r->data, call_back_list->data, ORAM_BLOCK_SIZE);
-            sock_standard_send(call_back_list->sock, buf, ORAM_SOCKET_ACCESS_SIZE_R);
+            if (call_back_list->op == ORAM_ACCESS_READ)
+                memcpy(access_r->data, call_back_list->data, ORAM_BLOCK_SIZE);
+            sock_standard_send(call_back_list->sock, buf_r, ORAM_SOCKET_ACCESS_SIZE_R);
         }
         stash_block_unlock(client_t.stash, queue_block->address);
         pthread_mutex_lock(&ctx->queue->queue_mutex);
         HASH_DEL(ctx->queue->queue_hash, queue_block);
+        free(queue_block);
         pthread_mutex_unlock(&ctx->queue->queue_mutex);
     }
     //process access address

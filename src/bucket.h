@@ -85,7 +85,7 @@ void flush_buckets(storage_ctx *ctx);
 
 void evict_to_disk(storage_ctx *ctx, int but);
 
-void free_server(storage_ctx *ctx);
+void free_storage(storage_ctx *ctx);
 
 oram_bucket* new_bucket();
 

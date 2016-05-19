@@ -43,7 +43,7 @@ void flush_buckets(storage_ctx *ctx) {
     }
 }
 
-void free_server(storage_ctx *ctx) {
+void free_storage(storage_ctx *ctx) {
     int i;
     if (ctx->size == 0)
         return;
@@ -52,7 +52,6 @@ void free_server(storage_ctx *ctx) {
             free(ctx->bucket_list[i]);
     ctx->size = 0;
     ctx->mem_counter = 0;
-    ctx->mem_max = 0;
     ctx->oram_tree_height = 0;
 }
 
