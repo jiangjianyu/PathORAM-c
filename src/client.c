@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include "client.h"
 #include "socket.h"
+#include "bucket.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -32,23 +33,19 @@ int get_random_dummy(_Bool valid_bits[], int offsets[]) {
 }
 
 int gen_reverse_lexicographic(int g, int oram_size, int tree_height) {
-    int i, reverse_int = 0;
-    g += oram_size/2 + 1;
-    for (i = 0;i < tree_height;++i) {
-        reverse_int <<= 1;
-        reverse_int |= g & 1;
+    int i, pos = 0;
+    for (i = 0;i < tree_height - 1;i++) {
+        pos = pos * 2 + (g & 0x01) + 1;
         g >>= 1;
     }
-    if (reverse_int > oram_size)
-        reverse_int >>= 1;
-    return reverse_int;
+    if (pos > oram_size)
+        pos >>= 1;
+    return pos;
 }
 
 void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf) {
-#if ORAM_DEBUG_LEVEL >= 2
-    log_f("read bucket %d to stash", bucket_id);
-#endif
+    log_detail("read bucket %d to stash", bucket_id);
     int i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -76,9 +73,7 @@ void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
 
 void write_bucket_to_server(access_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf) {
-#if ORAM_DEBUG_LEVEL >= 2
-    log_f("write bucket %d to server", bucket_id);
-#endif
+    log_detail("write bucket %d to server", bucket_id);
     int count,i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -176,7 +171,7 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
 }
 
 int read_path(int pos, int address, unsigned char data[], access_ctx *ctx) {
-    unsigned char socket_buf[ORAM_SOCKET_BUFFER];
+    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
     oram_bucket_encrypted_metadata metadata[ORAM_TREE_DEPTH];
     if (get_metadata_helper(pos, socket_buf, metadata, ctx) == -1){
         return -1;
@@ -267,7 +262,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
 }
 
 int oram_server_init(int bucket_size, client_storage_ctx *ctx, oram_init_op op) {
-    unsigned char buf[ORAM_SOCKET_BUFFER];
+    unsigned char buf[ORAM_SOCKET_BUFFER_MAX];
     socket_ctx *sock_ctx = (socket_ctx *)buf;
     socket_init *sock_init_ctx = (socket_init *)sock_ctx->buf;
     socket_init_r *sock_init_ctx_r = (socket_init_r *)sock_ctx->buf;
@@ -287,13 +282,99 @@ int oram_server_init(int bucket_size, client_storage_ctx *ctx, oram_init_op op) 
         return 0;
 }
 
+void read_bucket_from_server_path(int sock, int pos, int access_node) {
+    int pos_run, max, i, j;
+    unsigned char buf[100];
+    socket_ctx *sock_ctx = (socket_ctx *)buf;
+    socket_path_header *read_bucket = (socket_path_header *)sock_ctx->buf;
+    sock_ctx->type = SOCKET_READ_PATH;
+    for (pos_run = pos, i = 0;;i++, pos_run = (pos_run - 1) >> 1) {
+        if (pos_run == 0)
+            break;
+    }
+    max = i + 1;
+    read_bucket->pos = pos;
+    read_bucket->len = max;
+    oram_bucket_metadata meta;
+    oram_bucket *bucket_list = calloc(max, sizeof(oram_bucket));
+    stash_block *block;
+    sock_standard_send(sock, buf, ORAM_SOCKET_PATH_SIZE);
+    sock_standard_recv(sock, buf, ORAM_SOCKET_PATH_SIZE);
+    sock_standard_recv(sock, (unsigned char *)bucket_list, sizeof(oram_bucket) * max);
+    for (pos_run = pos, i = 0;;i++, pos_run = (pos_run - 1) >> 1) {
+        decrypt_message((unsigned char *)&meta ,bucket_list[i].encrypt_metadata, ORAM_CRYPT_META_SIZE_DE);
+        for (j = 0;j < ORAM_BUCKET_REAL;j++) {
+            //invalid address is set to -1
+            if (bucket_list[i].valid_bits[meta.offset[j]] == 1 && meta.address[j] >= 0) {
+                block = malloc(sizeof(stash_block));
+                block->address = meta.address[j];
+                block->bucket_id = malloc(sizeof(int) * client_t.backup_count);
+                block->bucket_id[0] = pos_run + access_node * client_t.oram_size;
+                block->evict_count = 1;
+                decrypt_message(block->data, bucket_list[i].data[meta.offset[j]], ORAM_CRYPT_DATA_SIZE_DE);
+                add_to_stash(client_t.stash, block);
+            }
+        }
+        if (pos_run == 0)
+            break;
+    }
+    free(bucket_list);
+}
+
+void write_bucket_to_server_path(int sock, int pos, int access_node) {
+    int count, i, pos_run, m, max;
+    unsigned char buf[100];
+    socket_ctx *sock_ctx = (socket_ctx *) buf;
+    socket_path_header *sock_write = (socket_path_header *) sock_ctx->buf;
+    oram_bucket_metadata meta;
+    for (pos_run = pos, i = 0;;i++, pos_run = (pos_run - 1) >> 1) {
+        if (pos_run == 0)
+            break;
+    }
+    max = i + 1;
+    sock_write->pos = pos;
+    sock_write->len = max;
+    sock_ctx->type = SOCKET_WRITE_PATH;
+    oram_bucket *bucket_list = calloc(max, sizeof(oram_bucket));
+    stash_block **stash_list = calloc(ORAM_BUCKET_REAL, sizeof(stash_block));
+    for (pos_run = pos, m = 0; ; pos_run = (pos_run - 1) >> 1, m++) {
+        count = find_remove_by_bucket(client_t.stash, pos_run + access_node * client_t.oram_size, ORAM_BUCKET_REAL,
+                                      stash_list);
+        get_random_permutation(ORAM_BUCKET_SIZE, meta.offset);
+        for (i = 0; i < count; i++) {
+            encrypt_message(bucket_list[m].data[meta.offset[i]], stash_list[i]->data, ORAM_BLOCK_SIZE);
+            meta.address[i] = stash_list[i]->address;
+        }
+        for (i = count; i < ORAM_BUCKET_SIZE; i++) {
+            encrypt_message(bucket_list[m].data[meta.offset[i]], client_t.blank_data, ORAM_BLOCK_SIZE);
+            if (i < ORAM_BUCKET_REAL)
+                meta.address[i] = -1;
+        }
+        bucket_list[m].read_counter = 0;
+        memset(bucket_list[m].valid_bits, 1, sizeof(bucket_list[m].valid_bits));
+        encrypt_message(bucket_list[m].encrypt_metadata, (unsigned char *) &meta, ORAM_META_SIZE);
+        if (pos_run == 0)
+            break;
+    }
+    sock_standard_send(sock, buf, ORAM_SOCKET_PATH_SIZE);
+    sock_standard_send(sock, (unsigned char *)bucket_list, sizeof(oram_bucket) * max);
+    sock_standard_recv(sock, buf, ORAM_SOCKET_PATH_SIZE);
+    if (sock_write->pos != -1)
+        log_sys("error in evict");
+    free(bucket_list);
+}
+
 void evict_path(access_ctx *ctx) {
-    log_detail("evict path %d", ctx->access_node);
-    unsigned char socket_buf[ORAM_SOCKET_BUFFER];
-    int pos_run;
-    socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
+    log_detail("evict path %d %d", ctx->access_node, ctx->access_node_index);
+//    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
+//    int pos_run;
+//    socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     int pos = gen_reverse_lexicographic(ctx->storage_ctx->eviction_g, client_t.oram_size, client_t.oram_tree_height);
-    ctx->storage_ctx->eviction_g = (ctx->storage_ctx->eviction_g + 1) % ((client_t.oram_size >> 1) + 1);
+    read_bucket_from_server_path(ctx->sock, pos, ctx->access_node);
+    write_bucket_to_server_path(ctx->sock, pos, ctx->access_node);
+
+/* Old way
+ * ctx->storage_ctx->eviction_g = (ctx->storage_ctx->eviction_g + 1) % ((client_t.oram_size >> 1) + 1);
     sock_ctx->type = SOCKET_READ_BUCKET;
     for (pos_run = pos; ;pos_run = (pos_run - 1) >> 1) {
         read_bucket_to_stash(ctx, pos_run, socket_buf);
@@ -306,12 +387,12 @@ void evict_path(access_ctx *ctx) {
         write_bucket_to_server(ctx, pos_run, socket_buf);
         if (pos_run == 0)
             break;
-    }
+    }*/
 }
 
 void early_reshuffle(int pos, access_ctx *ctx) {
     int i, pos_run;
-    unsigned char socket_buf[ORAM_SOCKET_BUFFER];
+    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
     for (i = 0, pos_run = pos;; pos_run = (pos_run - 1) >> 1, ++i) {
         //Notice that read counter in client is always one less
         if (ctx->metadata_counter[i] >= ORAM_BUCKET_DUMMY - 1) {
@@ -338,7 +419,7 @@ int node_init(client_storage_ctx *ctx, oram_node_pair *args) {
 int client_create(int node_count,int size_bucket, int backup, int re_init, oram_client_args *args) {
     int i, bk[backup], j, w, sock_set[node_count*backup], m;
     int address_position_map[size_bucket * node_count * backup][80];
-    unsigned char socket_buf[ORAM_SOCKET_BUFFER];
+    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
     socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
     socket_write_bucket *sock_write = (socket_write_bucket *)sock_ctx->buf;
     oram_bucket *bucket = &sock_write->bucket;
@@ -348,7 +429,7 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
     client_t.oram_size = size_bucket;
     client_t.node_count = node_count;
     client_t.backup_count = backup;
-    client_t.oram_tree_height = log(client_t.oram_size + 1)/log(2) + 1;
+    client_t.oram_tree_height = log(client_t.oram_size)/log(2) + 1;
     client_t.position_map = calloc(size_bucket * node_count * ORAM_BUCKET_REAL * backup, sizeof(int));
     client_t.stash = malloc(sizeof(client_stash));
     //init worker
@@ -545,8 +626,8 @@ void * worker_func(void *args) {
     oram_request_queue_block *queue_block;
     oram_request_queue_block *queue_block_find;
     oram_request_queue_block *call_back_list;
-    unsigned char buf[ORAM_SOCKET_BUFFER];
-    unsigned char buf_r[ORAM_SOCKET_BUFFER];
+    unsigned char buf[ORAM_SOCKET_BUFFER_MAX];
+    unsigned char buf_r[ORAM_SOCKET_BUFFER_MAX];
     access_ctx access_t;
     socket_access *access = (socket_access *)buf;
     socket_access_r *access_r = (socket_access_r *)buf_r;
@@ -613,7 +694,7 @@ int add_to_queue(int sock, oram_request_queue *queue) {
 }
 
 int client_access(int address, oram_access_op op,unsigned char data[], oram_node_pair *pair) {
-    unsigned char buf[ORAM_SOCKET_BUFFER];
+    unsigned char buf[ORAM_SOCKET_BUFFER_MAX];
     socket_access *access_sock = (socket_access *)buf;
     socket_access_r *access_sock_r = (socket_access_r *)buf;
     access_sock->address = address;

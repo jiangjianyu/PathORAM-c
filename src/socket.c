@@ -49,12 +49,19 @@ void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, char *host, int por
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
-    int r = 0, retry = 0;
+    if (len <= 0)
+        return 0;
+    ssize_t r;
+    int retry = 0;
     struct timeval tv;
     tv.tv_sec = 5;
     tv.tv_usec = 0;
 //    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-    for (retry = 0;retry < 5;retry++) {
+    while (1) {
+        if (retry >= 5) {
+            log_f("send connection timeout, exit");
+            return -1;
+        }
         r = send(sock, send_msg, len, 0);
         if (r < 0) {
             if (errno == EWOULDBLOCK) {
@@ -70,8 +77,6 @@ int sock_standard_send(int sock, unsigned char send_msg[], int len) {
             return 0;
         }
     }
-    log_f("connection timeout");
-    return -1;
 }
 
 int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
@@ -116,7 +121,7 @@ int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
             log_f("connection timeout, exit");
             return -1;
         }
-        now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);
+        now = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER_MAX, 0);
         if (now < 0) {
             if (errno == EWOULDBLOCK) {
                 log_f("connection timeout, retry %d", retry);

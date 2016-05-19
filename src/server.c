@@ -11,6 +11,7 @@
 #include "log.h"
 #include "utlist.h"
 #include "bucket.h"
+#include "socket.h"
 
 void add_to_evict(oram_evict_queue *queue, int bucket_id) {
     //Top Cache
@@ -54,6 +55,30 @@ void prefetch_bucket(int bucket_id, server_ctx *sv_ctx) {
         ctx->bucket_list[bucket_id] = read_bucket_from_file(bucket_id);
     }
     add_to_evict(sv_ctx->evict_queue, bucket_id);
+}
+
+void read_bucket_path(int pos, oram_bucket *bucket_list, server_ctx *ctx) {
+    log_normal("Read Path %d", pos);
+    int pos_run, i;
+    oram_bucket  *bucket;
+    for (pos_run = pos, i = 0; ;i++, pos_run = (pos_run - 1) >> 1) {
+        bucket = get_bucket(pos_run, ctx);
+        memcpy(&bucket_list[i], bucket, sizeof(oram_bucket));
+        if (pos_run == 0)
+            break;
+    }
+}
+
+void write_bucket_path(int pos, oram_bucket *bucket_list, server_ctx *ctx) {
+    log_normal("Write Path %d", pos);
+    int pos_run, i;
+    oram_bucket *bucket;
+    for (pos_run = pos, i = 0; ;i++, pos_run = (pos_run - 1) >> 1) {
+        bucket = get_bucket(pos_run, ctx);
+        memcpy(bucket, &bucket_list[i], sizeof(oram_bucket));
+        if (pos_run == 0)
+            break;
+    }
 }
 
 void read_bucket(int bucket_id, socket_read_bucket_r *read_bucket_ctx, server_ctx *ctx) {
@@ -175,8 +200,8 @@ void * func_pre(void *args) {
     ssize_t r;
     int send_len;
     oram_server_queue_block *queue_block;
-    unsigned char *buff = malloc(ORAM_SOCKET_BUFFER);
-    unsigned char *buff_r = malloc(ORAM_SOCKET_BUFFER);
+    unsigned char *buff = malloc(ORAM_SOCKET_BUFFER(ORAM_TREE_DEPTH));
+    unsigned char *buff_r = malloc(ORAM_SOCKET_BUFFER(ORAM_TREE_DEPTH));
     socket_ctx *sock_ctx = (socket_ctx *)buff;
     socket_ctx *sock_ctx_r = (socket_ctx *)buff_r;
 
@@ -185,6 +210,8 @@ void * func_pre(void *args) {
     socket_read_block *read_block_ctx = (socket_read_block *) sock_ctx->buf;
     socket_get_metadata *get_metadata_ctx = (socket_get_metadata *) sock_ctx->buf;
 
+    socket_path_header *path_header_ctx = (socket_path_header *) sock_ctx->buf;
+    socket_path_header *path_header_ctx_r = (socket_path_header *) sock_ctx_r->buf;
     socket_write_bucket_r *write_bucket_ctx_r = (socket_write_bucket_r *) sock_ctx_r->buf;
 
     while (ctx->running) {
@@ -202,7 +229,7 @@ void * func_pre(void *args) {
         while (1) {
 //            bzero(buff, ORAM_SOCKET_BUFFER);
 //            bzero(buff_r, ORAM_SOCKET_BUFFER);
-            r = recv(queue_block->sock, buff, ORAM_SOCKET_BUFFER, 0);
+            r = recv(queue_block->sock, buff, ORAM_SOCKET_BUFFER_MAX, 0);
 
             queue_block->data_ready = 0;
             if (r <= 0) {
@@ -227,6 +254,25 @@ void * func_pre(void *args) {
                     send_len = ORAM_SOCKET_WRITE_SIZE_R;
                     queue_block->pos = write_bucket_ctx->bucket_id;
                     break;
+                case SOCKET_READ_PATH:
+                    if (r != ORAM_SOCKET_PATH_SIZE)
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_PATH_SIZE);
+                    sock_ctx_r->type = SOCKET_READ_PATH;
+                    queue_block->pos = path_header_ctx->pos;
+                    send_len = ORAM_SOCKET_PATH_SIZE + sizeof(oram_bucket) * path_header_ctx->len;
+                    path_header_ctx_r->pos = path_header_ctx->pos;
+                    path_header_ctx_r->len = path_header_ctx->len;
+                    break;
+                case SOCKET_WRITE_PATH:
+                    if (r != ORAM_SOCKET_PATH_SIZE)
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_PATH_SIZE);
+                    queue_block->pos = path_header_ctx->pos;
+                    sock_standard_recv(queue_block->sock, buff + ORAM_SOCKET_PATH_SIZE, sizeof(oram_bucket) * path_header_ctx->len);
+                    sock_ctx_r->type = SOCKET_WRITE_PATH;
+                    send_len = ORAM_SOCKET_PATH_SIZE;
+                    path_header_ctx_r->pos = -1;
+                    path_header_ctx_r->len = path_header_ctx->len;
+                    break;
                 case SOCKET_GET_META:
                     if (r != ORAM_SOCKET_META_SIZE)
                         sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_META_SIZE);
@@ -250,7 +296,7 @@ void * func_pre(void *args) {
                     queue_block->pos = -1;
                     break;
                 default:
-                    break;
+                    continue;
             }
             queue_block->buff = sock_ctx->buf;
             queue_block->buff_r = sock_ctx_r->buf;
@@ -337,6 +383,12 @@ void * func_main(void *args) {
                 break;
             case SOCKET_GET_META:
                 get_metadata(queue_block->pos, (socket_get_metadata_r *)queue_block->buff_r, ctx);
+                break;
+            case SOCKET_READ_PATH:
+                read_bucket_path(queue_block->pos, (oram_bucket *)(queue_block->buff_r + sizeof(socket_path_header)), ctx);
+                break;
+            case SOCKET_WRITE_PATH:
+                write_bucket_path(queue_block->pos, (oram_bucket *)(queue_block->buff + sizeof(socket_path_header)), ctx);
                 break;
             case SOCKET_READ_BLOCK:
                 read_block(queue_block->pos, (socket_read_block *)queue_block->buff,

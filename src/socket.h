@@ -16,9 +16,11 @@
 typedef enum {
     SOCKET_READ_BUCKET = 0,
     SOCKET_WRITE_BUCKET = 1,
-    SOCKET_GET_META = 2,
-    SOCKET_READ_BLOCK = 3,
-    SOCKET_INIT = 4,
+    SOCKET_READ_PATH = 2,
+    SOCKET_WRITE_PATH = 3,
+    SOCKET_GET_META = 4,
+    SOCKET_READ_BLOCK = 5,
+    SOCKET_INIT = 6,
 } socket_type;
 
 typedef enum {
@@ -56,6 +58,11 @@ typedef struct {
     int bucket_id;
     oram_bucket bucket;
 } socket_read_bucket_r;
+
+typedef struct {
+    int pos;
+    int len;
+} socket_path_header;
 
 typedef struct {
     int pos;
@@ -104,6 +111,7 @@ typedef struct {
 #define ORAM_SOCKET_OVERHEAD sizeof(int)
 #define ORAM_SOCKET_READ_SIZE sizeof(socket_read_bucket) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_META_SIZE sizeof(socket_get_metadata) + ORAM_SOCKET_OVERHEAD
+#define ORAM_SOCKET_PATH_SIZE sizeof(socket_path_header) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_BLOCK_SIZE(tree_height) sizeof(socket_read_block) + ORAM_SOCKET_OVERHEAD \
                                                 - (ORAM_TREE_DEPTH - tree_height) * sizeof(int)
 #define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + ORAM_SOCKET_OVERHEAD
@@ -118,7 +126,9 @@ typedef struct {
 #define ORAM_SOCKET_INIT_SIZE_R sizeof(socket_init_r) + ORAM_SOCKET_OVERHEAD
 
 
-#define ORAM_SOCKET_BUFFER ORAM_SOCKET_READ_SIZE_R
+#define ORAM_SOCKET_BUFFER(tree_height) ORAM_SOCKET_PATH_SIZE + sizeof(oram_bucket) * tree_height
+
+#define ORAM_SOCKET_BUFFER_MAX ORAM_SOCKET_READ_SIZE_R
 
 #define ORAM_SOCKET_BACKLOG 40
 

@@ -55,7 +55,7 @@ int main (int argc, char* argv[]) {
 //            return -1;
         sprintf(ar.key, "ORAM");
         ar.host = "127.0.0.1";
-        ar.port = 30000;
+        ar.port = 30005;
         ar.worker = 4;
         ar.node_list = calloc(4 ,sizeof(oram_node_pair));
         ar.node_list[0].host = "127.0.0.1";
@@ -69,7 +69,7 @@ int main (int argc, char* argv[]) {
         ar.save_file = "client.meta";
         ar.load_file = "client.meta";
         crypt_init(ar.key);
-        if (client_create(2, 6000, 2, 1, &ar) < 0)
+        if (client_create(2, 100, 2, 1, &ar) < 0)
             return -1;
 //        if (client_load(&ar, 1) < 0)
 //            return -1;
@@ -80,17 +80,17 @@ int main (int argc, char* argv[]) {
         unsigned char data[ORAM_BLOCK_SIZE];
         oram_node_pair pair;
         pair.host = "127.0.0.1";
-        pair.port = 30000;
-        for (i = 0;i < 4000;i++) {
+        pair.port = 30005;
+        for (i = 0;i < 200;i++) {
             data[0] = i % 256;
             client_access(i, ORAM_ACCESS_WRITE, data, &pair);
         }
-        for (i = 0;i < 4000;i++) {
+        for (i = 0;i < 200;i++) {
             client_access(i, ORAM_ACCESS_READ, data, &pair);
             f[i] = data[0];
         }
 //        client_access(-1, ORAM_ACCESS_READ, data, &pair);
-        for (i = 0;i < 4000;i++) {
+        for (i = 0;i < 200;i++) {
             log_f("assert %d == %d, bool %d", i, f[i], f[i] == i % 256);
             assert(f[i] == i % 256);
         }
