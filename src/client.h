@@ -34,6 +34,19 @@ typedef struct {
     sem_t queue_semaphore;
 } oram_request_queue;
 
+typedef struct oram_evict_path_queue_block{
+    int node;
+    int index;
+    struct oram_evict_path_queue_block *next_l;
+} oram_evict_path_queue_block;
+
+typedef struct {
+    oram_evict_path_queue_block *queue_block;
+    pthread_mutex_t queue_mutex;
+    pthread_cond_t queue_cond;
+    int queue_count;
+} oram_evict_path_queue;
+
 typedef struct {
     int round;
     int eviction_g;
@@ -58,6 +71,7 @@ typedef struct {
     struct sockaddr_in server_addr;
     socklen_t addrlen;
     oram_request_queue *queue;
+    oram_evict_path_queue *evict_queue;
     oram_client_args *args;
     pthread_t *worker_id;
     //Share buffer for early eviction
@@ -96,7 +110,7 @@ int read_path(int pos, int address, unsigned char data[], access_ctx *ctx);
 
 int oblivious_access(int address, oram_access_op op, unsigned char data[], access_ctx *ctx);
 
-void evict_path(access_ctx *ctx);
+void evict_path(int index, int node);
 
 void early_reshuffle(int pos, access_ctx *ctx);
 

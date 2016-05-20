@@ -33,7 +33,7 @@ void load_default_args(oram_args_t *args) {
     args->host = ORAM_DEFAULT_HOST;
     args->port = ORAM_DEFAULT_PORT;
     args->max_mem = 5000;
-    args->worker = 1;
+    args->worker = 4;
     strcpy(args->pid_file, ORAM_PIDFILE);
     strcpy(args->log_file, ORAM_LOGFILE);
 }

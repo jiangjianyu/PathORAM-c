@@ -169,6 +169,17 @@ int read_block_helper(int pos, int address, unsigned char socket_buf[],
     return found;
 }
 
+void add_to_evict_queue(oram_evict_path_queue *queue, int index, int access_node) {
+    oram_evict_path_queue_block *queue_block = malloc(sizeof(oram_evict_path_queue_block));
+    queue_block->index = index;
+    queue_block->node = access_node;
+    pthread_mutex_lock(&queue->queue_mutex);
+    queue->queue_count++;
+    LL_APPEND(queue->queue_block, queue_block);
+    pthread_mutex_unlock(&queue->queue_mutex);
+    pthread_cond_signal(&queue->queue_cond);
+}
+
 int read_path(int pos, int address, unsigned char data[], access_ctx *ctx) {
     unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
     oram_bucket_encrypted_metadata metadata[ORAM_TREE_DEPTH];
@@ -248,7 +259,7 @@ int oblivious_access(int address, oram_access_op op, unsigned char data[], acces
         //DO NOT Reshuffle in the first time
         client_t.client_storage[access_node_id].round = (++client_t.client_storage[access_node_id].round) % ORAM_RESHUFFLE_RATE;
         if (client_t.client_storage[access_node_id].round == 0)
-            evict_path(ctx);
+            add_to_evict_queue(client_t.evict_queue, ctx->access_node_index, ctx->access_node);
         early_reshuffle(leaf_pos, ctx);
         pthread_mutex_lock(&client_t.mutex_counter);
         client_t.node_access_counter[access_node_id]--;
@@ -364,14 +375,16 @@ void write_bucket_to_server_path(int sock, int pos, int access_node) {
     free(bucket_list);
 }
 
-void evict_path(access_ctx *ctx) {
-    log_detail("evict path %d %d", ctx->access_node, ctx->access_node_index);
+void evict_path(int index, int node) {
+    log_detail("evict path %d %d", node, index);
 //    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
 //    int pos_run;
 //    socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
-    int pos = gen_reverse_lexicographic(ctx->storage_ctx->eviction_g, client_t.oram_size, client_t.oram_tree_height);
-    read_bucket_from_server_path(ctx->sock, pos, ctx->access_node);
-    write_bucket_to_server_path(ctx->sock, pos, ctx->access_node);
+    client_storage_ctx *sto_ctx = &client_t.client_storage[node];
+    int sock = sock_connect_init(&sto_ctx->server_addr, sto_ctx->addrlen);
+    int pos = gen_reverse_lexicographic(sto_ctx->eviction_g, client_t.oram_size, client_t.oram_tree_height);
+    read_bucket_from_server_path(sock, pos, node);
+    write_bucket_to_server_path(sock, pos, node);
 
 /* Old way
  * ctx->storage_ctx->eviction_g = (ctx->storage_ctx->eviction_g + 1) % ((client_t.oram_size >> 1) + 1);
@@ -594,8 +607,30 @@ void client_save(int exit) {
     close(fd);
 }
 
+void * evict_func(void *args) {
+    client_ctx *ctx = (client_ctx *)args;
+    oram_evict_path_queue *queue = ctx->evict_queue;
+    oram_evict_path_queue_block *block;
+    while (ctx->running) {
+        pthread_mutex_lock(&queue->queue_mutex);
+        if (queue->queue_count <= 0)
+            pthread_cond_wait(&queue->queue_cond, &queue->queue_mutex);
+        queue->queue_count--;
+        block = queue->queue_block;
+        if (block == NULL) {
+            pthread_mutex_unlock(&queue->queue_mutex);
+            continue;
+        }
+        LL_DELETE(queue->queue_block, block);
+        pthread_mutex_unlock(&queue->queue_mutex);
+        evict_path(block->index, block->node);
+    }
+    return 0;
+}
+
 int listen_accept(oram_client_args *args) {
     int i;
+    pthread_t evict_pid;
     if (sock_init_byhost(&client_t.server_addr, &client_t.addrlen,&client_t.server_sock, args->host, args->port, 1) < 0)
         return -1;
 
@@ -606,10 +641,18 @@ int listen_accept(oram_client_args *args) {
     sem_init(&client_t.queue->queue_semaphore, 0, 0);
     pthread_mutex_init(&client_t.queue->queue_mutex, NULL);
 
+    client_t.evict_queue = malloc(sizeof(oram_evict_path_queue));
+    client_t.evict_queue->queue_block = NULL;
+    client_t.evict_queue->queue_count = 0;
+    pthread_mutex_init(&client_t.evict_queue->queue_mutex, NULL);
+    pthread_cond_init(&client_t.evict_queue->queue_cond, NULL);
+
     client_t.worker_id = calloc(args->worker, sizeof(pthread_t));
     for (i = 0;i < args->worker;i++) {
         pthread_create(&client_t.worker_id[i], NULL, worker_func, (void *)&client_t);
     }
+
+    pthread_create(&evict_pid, NULL, evict_func, (void *)&client_t);
 
     log_sys("Midware Started.");
     while (client_t.running) {
