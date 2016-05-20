@@ -7,7 +7,7 @@
 #include "crypt.h"
 #include "log.h"
 int sock_bug;
-#define RAMDOM_WRITE
+//#define RAMDOM_WRITE
 //#define RAMDOM_READ
 
 void get_random_bytes(unsigned char buff[], int len) {

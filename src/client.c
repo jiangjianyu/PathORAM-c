@@ -7,8 +7,7 @@
 #include <pthread.h>
 #include <stddef.h>
 #include "client.h"
-#include "socket.h"
-#include "bucket.h"
+#include "performance.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -197,6 +196,7 @@ int get_access_node(int node_counter[], int choose_node[], int node_total, int *
 }
 
 int oblivious_access(int address, oram_access_op op, unsigned char data[], access_ctx *ctx) {
+    P_ADD_BANDWIDTH_ORIGINAL(ORAM_BLOCK_SIZE);
     int leaf_pos, i;
     int position[client_t.backup_count];
     int position_new[client_t.backup_count];
@@ -513,6 +513,7 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
     for (i = 0;i < node_count * backup;i++) {
         close(sock_set[i]);
     }
+    P_INIT("127.0.0.1", 30010);
     return 0;
 }
 

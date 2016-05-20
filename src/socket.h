@@ -11,7 +11,9 @@
 
 #include "bucket.h"
 
-
+#define ORAM_SOCKET_TIMEOUT
+#define ORAM_SOCKET_TIMEOUT_SECOND 5
+#define ORAM_SOCKET_TIMEOUT_USECOND 0
 
 typedef enum {
     SOCKET_READ_BUCKET = 0,

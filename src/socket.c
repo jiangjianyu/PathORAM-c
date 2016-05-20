@@ -4,6 +4,7 @@
 
 #include "socket.h"
 #include "log.h"
+#include "performance.h"
 
 int sock_init_byhost(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                char *host, int port, int if_bind) {
@@ -49,14 +50,17 @@ void sock_init(struct sockaddr_in *addr, socklen_t *addrlen, char *host, int por
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
+    P_ADD_BANDWIDTH(len);
     if (len <= 0)
         return 0;
     ssize_t r;
     int retry = 0;
     struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-//    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    tv.tv_sec = ORAM_SOCKET_TIMEOUT_SECOND;
+    tv.tv_usec = ORAM_SOCKET_TIMEOUT_USECOND;
+#ifdef ORAM_SOCKET_TIMEOUT
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
     while (1) {
         if (retry >= 5) {
             log_f("send connection timeout, exit");
@@ -80,11 +84,14 @@ int sock_standard_send(int sock, unsigned char send_msg[], int len) {
 }
 
 int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
+    P_ADD_BANDWIDTH(sock_len);
     int total = 0, r = 0 ,retry = 0;
     struct timeval tv;
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
-//    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    tv.tv_sec = ORAM_SOCKET_TIMEOUT_SECOND;
+    tv.tv_usec = ORAM_SOCKET_TIMEOUT_USECOND;
+#ifdef ORAM_SOCKET_TIMEOUT
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
     while (total < sock_len) {
         if (retry >= 5) {
             log_f("connection timeout, exit");
@@ -93,7 +100,7 @@ int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
         r = recv(sock, recv_msg + total, sock_len, 0);
         if (r < 0) {
             if (errno == EWOULDBLOCK) {
-                log_f("connection timeout, retry %d", retry);
+                log_f("connection timeout, retry %d, now %d, total %d", retry, total, sock_len);
                 retry++;
                 continue;
             }
@@ -136,7 +143,7 @@ int sock_recv_add(int sock, unsigned char recv_msg[], int now, int len) {
         }
         total += now;
     }
-    return 0;
+    return total;
 }
 
 int sock_send_recv(int sock, unsigned char send_msg[], unsigned char recv_msg[],

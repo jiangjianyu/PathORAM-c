@@ -10,8 +10,6 @@
 #include "server.h"
 #include "log.h"
 #include "utlist.h"
-#include "bucket.h"
-#include "socket.h"
 
 void add_to_evict(oram_evict_queue *queue, int bucket_id) {
     //Top Cache
@@ -265,9 +263,9 @@ void * func_pre(void *args) {
                     break;
                 case SOCKET_WRITE_PATH:
                     if (r != ORAM_SOCKET_PATH_SIZE)
-                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_PATH_SIZE);
+                        r = sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_PATH_SIZE);
                     queue_block->pos = path_header_ctx->pos;
-                    sock_standard_recv(queue_block->sock, buff + ORAM_SOCKET_PATH_SIZE, sizeof(oram_bucket) * path_header_ctx->len);
+                    sock_recv_add(queue_block->sock, buff, r, sizeof(oram_bucket) * path_header_ctx->len + ORAM_SOCKET_PATH_SIZE);
                     sock_ctx_r->type = SOCKET_WRITE_PATH;
                     send_len = ORAM_SOCKET_PATH_SIZE;
                     path_header_ctx_r->pos = -1;

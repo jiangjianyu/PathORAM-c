@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include "stash.h"
 #include "client.h"
+#include "performance.h"
 
 int in_bucket_list(int tar, int mem[], int start, int len) {
     int i;
@@ -26,6 +27,7 @@ int init_stash(client_stash *stash, int size) {
 
 //Only add to stash if in bucket_id list
 void add_to_stash(client_stash *stash, stash_block *block) {
+    P_ADD_STASH(1);
     stash_block *ne;
     stash_list_block *ne_list;
     int i, j, k;
@@ -134,6 +136,7 @@ int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_blo
         }
     }
     pthread_mutex_unlock(&stash->stash_mutex);
+    P_DEL_STASH(delete_max);
     return delete_max;
 }
 
