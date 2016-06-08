@@ -64,7 +64,7 @@ void read_bucket_to_stash(access_ctx *ctx ,int bucket_id,
             block = malloc(sizeof(stash_block));
             block->address = meta->address[i];
             block->bucket_id = sock_read_r->bucket_id + (ctx->access_node * client_t.oram_size);
-            log_detail("Read block %d from bucket %d", block->address, ctx->access_node * client_t.oram_size);
+            log_all("Read block %d from bucket %d", block->address, ctx->access_node * client_t.oram_size);
             decrypt_message(block->data, sock_read_r->bucket.data[meta->offset[i]], ORAM_CRYPT_DATA_SIZE_DE);
             add_to_stash(client_t.stash, block);
         }
@@ -87,7 +87,7 @@ void write_bucket_to_server(access_ctx *ctx, int bucket_id,
     for (i = 0;i < count;i++) {
         encrypt_message(sock_write->bucket.data[meta->offset[i]], stash_list[i]->data, ORAM_BLOCK_SIZE);
         meta->address[i] = stash_list[i]->address;
-        log_detail("Write block %d from bucket %d, position %d", meta->address[i], bucket_id +
+        log_all("Write block %d from bucket %d, position %d", meta->address[i], bucket_id +
                   ctx->access_node * client_t.oram_size, client_t.position_map[meta->address[i]]);
     }
     for (i = count; i < ORAM_BUCKET_SIZE; i++) {
@@ -188,7 +188,7 @@ void add_to_evict_queue(oram_evict_path_queue *queue, int index, int access_node
 }
 
 int read_path(int pos, int address, unsigned char data[], access_ctx *ctx) {
-    log_detail("Read block %d in pos %d", address, ctx->access_node * client_t.oram_size + pos);
+    log_all("Read block %d in pos %d", address, ctx->access_node * client_t.oram_size + pos);
     unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
     oram_bucket_encrypted_metadata metadata[ORAM_TREE_DEPTH];
     if (get_metadata_helper(pos, socket_buf, metadata, ctx) == -1){
@@ -322,7 +322,7 @@ void read_bucket_from_server_path(int sock, int pos, int access_node) {
                 block = malloc(sizeof(stash_block));
                 block->address = meta.address[j];
                 block->bucket_id = pos_run + access_node * client_t.oram_size;
-                log_detail("Read block %d from bucket %d", block->address, pos_run +
+                log_all("Read block %d from bucket %d", block->address, pos_run +
                         access_node * client_t.oram_size);
                 decrypt_message(block->data, bucket_list[i].data[meta.offset[j]], ORAM_CRYPT_DATA_SIZE_DE);
                 add_to_stash(client_t.stash, block);
@@ -358,7 +358,7 @@ void write_bucket_to_server_path(int sock, int pos, int access_node) {
         for (i = 0; i < count; i++) {
             encrypt_message(bucket_list[m].data[meta.offset[i]], stash_list[i]->data, ORAM_BLOCK_SIZE);
             meta.address[i] = stash_list[i]->address;
-            log_detail("Write block %d from bucket %d, position %d", meta.address[i], pos_run + access_node * client_t.oram_size, client_t.position_map[meta.address[i]]);
+            log_all("Write block %d from bucket %d, position %d", meta.address[i], pos_run + access_node * client_t.oram_size, client_t.position_map[meta.address[i]]);
         }
         for (i = count; i < ORAM_BUCKET_SIZE; i++) {
             encrypt_message(bucket_list[m].data[meta.offset[i]], client_t.blank_data, ORAM_BLOCK_SIZE);

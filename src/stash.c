@@ -83,7 +83,15 @@ void add_to_stash(client_stash *stash, stash_block *block) {
             ne_list->block = block;
             ne_list->next_l = NULL;
             LL_APPEND(stash->bucket_to_stash[block->bucket_id], ne_list);
-            stash->bucket_to_stash_count[block->bucket_id]++;
+            int index = block->bucket_id % client_t.oram_size;
+            int id_left = block->bucket_id - index;
+            int pos = index;
+            for (;;pos = (pos - 1) >> 1) {
+                stash->bucket_to_stash_count[pos + id_left]++;
+                if (pos == 0)
+                    break;
+            }
+//            stash->bucket_to_stash_count[block->bucket_id]++;
 //            log_detail("Add block %d to stash, bucket %d", block->address, block->bucket_id);
         } else {
             log_detail("Too old, drop block");
@@ -151,31 +159,24 @@ void add_to_stash(client_stash *stash, stash_block *block) {
      */
 }
 
-//return remove block
-int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block *block_list[], int backup_index) {
-    int i = 0, j = 0,delete_max = 0, leaf, delete_now, left, m, q, q_finish;
-
-    pthread_mutex_lock(&stash->stash_mutex);
+int recursive_remove(client_stash *stash, int pos, int pos_base,int len, int start,stash_block *block_list[], int backup_index) {
+    int now_node, delete_now, delete_max, j, q_finish, q, pos_run;
     stash_list_block *now, *next;
     stash_block *now_block;
-    int bucket_id_node = bucket_id / client_t.oram_size;
-    int bucket_id_index = bucket_id % client_t.oram_size;
-    int max_leaf = get_max_leaf(bucket_id_index);
-    for (m = 0;i < max_leaf && delete_max < max;i++) {
-        leaf = get_ith_leaf(bucket_id_index, i) + bucket_id_node * client_t.oram_size;
-        delete_now = stash->bucket_to_stash_count[leaf];
-        if (delete_now == 0)
-            continue;
-        left = max - delete_max;
-        next = stash->bucket_to_stash[leaf];
-        for (;j < min(left, delete_now);j++) {
-            delete_max++;
+    now_node = pos + pos_base;
+    if (pos >= client_t.oram_size || !stash->bucket_to_stash_count[now_node])
+        return 0;
+    /* if it is a leaf node */
+    if (pos > client_t.oram_tree_leaf_start) {
+        delete_now = stash->bucket_to_stash_count[now_node];
+        delete_max = min(delete_now, len);
+        next = stash->bucket_to_stash[now_node];
+        for (j = 0;j < delete_max;j++) {
             now = next;
             next = now->next_l;
             now_block = now->block;
             now_block->evict_bool[backup_index] = 1;
-            block_list[m++] = now_block;
-            log_detail("Evict block %d to bucket %d i %d", now_block->address, now_block->bucket_id, i);
+            block_list[start++] = now_block;
             q_finish = 1;
             for (q = 0;q < client_t.backup_count;q++) {
                 if (!now_block->evict_bool[q]) {
@@ -184,16 +185,37 @@ int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_blo
                 }
             }
             if(q_finish) {
-                log_detail("Evict block %d to server, all finished", now_block->address);
+                log_all("Evict block %d to server, all finished", now_block->address);
                 HASH_DEL(stash->address_to_stash, now_block);
-                LL_DELETE(stash->bucket_to_stash[leaf], now);
-                stash->bucket_to_stash_count[leaf]--;
+                LL_DELETE(stash->bucket_to_stash[now_node], now);
+                for (pos_run = pos;; pos_run = (pos_run - 1) >> 1) {
+                    stash->bucket_to_stash_count[pos_run + pos_base]--;
+                    if (pos_run == 0)
+                        break;
+                }
                 P_DEL_STASH(1);
             }
         }
+        return delete_max;
     }
+    /* if it is a node in the middle of a tree */
+    int add = recursive_remove(stash, 2*pos + 1, pos_base, len, start, block_list, backup_index);
+    len -= add;
+    start += add;
+    if (len == 0)
+        return add;
+    return recursive_remove(stash, 2*pos + 2, pos_base, len, start, block_list, backup_index) + add;
+}
+
+//return remove block
+int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_block *block_list[], int backup_index) {
+    int delete_max = 0;
+    int pos_in = bucket_id % client_t.oram_size;
+    int pos_base = bucket_id - pos_in;
+    pthread_mutex_lock(&stash->stash_mutex);
+    delete_max = recursive_remove(stash, pos_in, pos_base, max, 0, block_list, backup_index);
     pthread_mutex_unlock(&stash->stash_mutex);
-    log_all("remove %d buckets to server, backup %d", delete_max, backup_index);
+    log_detail("remove %d buckets to server", delete_max);
     return delete_max;
 /*
  *
