@@ -54,22 +54,24 @@ int main (int argc, char* argv[]) {
         client_ctx ctx;
         oram_client_args ar;
         ar.verbose = 1;
+	ar.host="10.0.1.146";
+	ar.port=30000;
         if (client_init(&ctx, &ar) < 0)
             return -1;
-        if (client_create(&ctx, 6000, 1) < 0)
+        if (client_create(&ctx, 13108, 1) < 0)
             return -1;
 //        if (client_load(&ctx, 1) < 0)
 //            return -1;
         unsigned char data[ORAM_BLOCK_SIZE];
         int m;
         p_get_performance("127.0.0.1", 30010);
-        for(m = 0;m < 100;m++) {
-            data[0] = m;
+        for(m = 0;m < 1048576;m++) {
+            //data[0] = m;
             oblivious_access(m, ORAM_ACCESS_WRITE, data, &ctx);
         }
-        for(m = 0;m < 100;m++) {
+        for(m = 0;m < 1048576;m++) {
             oblivious_access(m, ORAM_ACCESS_READ, data, &ctx);
-            f[m] = data[0];
+            //f[m] = data[0];
         }
         p_get_performance("127.0.0.1", 30010);
 //        for (m = 0;m < 100;m++)

@@ -362,6 +362,7 @@ int client_create(client_ctx *ctx, int size_bucket, int re_init) {
     }
     log_f("Client Create");
     P_INIT("0.0.0.0", 30010);
+    sleep(2);
     return 0;
 }
 
