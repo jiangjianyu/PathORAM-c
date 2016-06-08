@@ -28,16 +28,14 @@ int get_random_dummy(_Bool valid_bits[], int offsets[]) {
 }
 
 int gen_reverse_lexicographic(int g, int oram_size, int tree_height) {
-    int i, reverse_int = 0;
-    g += oram_size/2 + 1;
-    for (i = 0;i < tree_height;++i) {
-        reverse_int <<= 1;
-        reverse_int |= g & 1;
+    int i, pos = 0;
+    for (i = 0;i < tree_height - 1;i++) {
+        pos = pos * 2 + (g & 0x01) + 1;
         g >>= 1;
     }
-    if (reverse_int > oram_size)
-        reverse_int >>= 1;
-    return reverse_int;
+    if (pos > oram_size)
+        pos >>= 1;
+    return pos;
 }
 
 void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
