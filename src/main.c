@@ -7,6 +7,7 @@
 #include "client.h"
 #include "server.h"
 #include "daemon.h"
+#include "performance.h"
 
 
 static server_ctx sv_ctx;
@@ -69,7 +70,7 @@ int main (int argc, char* argv[]) {
         ar.save_file = "client.meta";
         ar.load_file = "client.meta";
         crypt_init(ar.key);
-        if (client_create(2, 6000, 2, 1, &ar) < 0)
+        if (client_create(2, 2000, 2, 1, &ar) < 0)
             return -1;
 //        if (client_load(&ar, 1) < 0)
 //            return -1;
@@ -81,16 +82,18 @@ int main (int argc, char* argv[]) {
         oram_node_pair pair;
         pair.host = "127.0.0.1";
         pair.port = 30005;
-        for (i = 0;i < 6000;i++) {
+        p_get_performance("127.0.0.1", 30010);
+        for (i = 0;i < 5000;i++) {
             data[0] = i % 256;
             client_access(i, ORAM_ACCESS_WRITE, data, &pair);
         }
-        for (i = 0;i < 6000;i++) {
+        for (i = 0;i < 5000;i++) {
             client_access(i, ORAM_ACCESS_READ, data, &pair);
             f[i] = data[0];
         }
+        p_get_performance("127.0.0.1", 30010);
 //        client_access(-1, ORAM_ACCESS_READ, data, &pair);
-        for (i = 0;i < 6000;i++) {
+        for (i = 0;i < 5000;i++) {
             log_f("assert %d == %d, bool %d", i, f[i], f[i] == i % 256);
             assert(f[i] == i % 256);
         }

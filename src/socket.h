@@ -11,7 +11,7 @@
 
 #include "bucket.h"
 
-#define ORAM_SOCKET_TIMEOUT
+//#define ORAM_SOCKET_TIMEOUT
 #define ORAM_SOCKET_TIMEOUT_SECOND 5
 #define ORAM_SOCKET_TIMEOUT_USECOND 0
 
@@ -23,6 +23,7 @@ typedef enum {
     SOCKET_GET_META = 4,
     SOCKET_READ_BLOCK = 5,
     SOCKET_INIT = 6,
+    SOCKET_WRITE_META = 7,
 } socket_type;
 
 typedef enum {
@@ -46,6 +47,11 @@ typedef struct {
     int bucket_id;
     oram_bucket bucket;
 } socket_write_bucket;
+
+typedef struct {
+    int bucket_id;
+    unsigned char encrypt_meta[ORAM_CRYPT_META_SIZE];
+} socket_write_meta;
 
 typedef struct {
     int bucket_id;
@@ -116,6 +122,7 @@ typedef struct {
 #define ORAM_SOCKET_PATH_SIZE sizeof(socket_path_header) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_BLOCK_SIZE(tree_height) sizeof(socket_read_block) + ORAM_SOCKET_OVERHEAD \
                                                 - (ORAM_TREE_DEPTH - tree_height) * sizeof(int)
+#define ORAM_SOCKET_WRITE_META_SIZE sizeof(socket_write_meta) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_WRITE_SIZE sizeof(socket_write_bucket) + ORAM_SOCKET_OVERHEAD
 #define ORAM_SOCKET_INIT_SIZE sizeof(socket_init) + ORAM_SOCKET_OVERHEAD
 

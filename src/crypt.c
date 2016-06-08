@@ -7,7 +7,7 @@
 #include "crypt.h"
 #include "log.h"
 int sock_bug;
-//#define RAMDOM_WRITE
+#define RAMDOM_WRITE
 //#define RAMDOM_READ
 
 void get_random_bytes(unsigned char buff[], int len) {
@@ -36,6 +36,9 @@ void crypt_init(unsigned char key[]) {
 #else
 #ifdef RAMDOM_WRITE
     sock_bug = open("random.k", O_WRONLY|O_CREAT,S_IRUSR|S_IWUSR);
+    if (sock_bug < 0) {
+        log_f("file not exists");
+    }
 #endif
 #endif
     cr_ctx = malloc(sizeof(crypt_ctx));

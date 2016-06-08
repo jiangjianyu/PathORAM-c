@@ -14,7 +14,7 @@
 #include "args.h"
 #include <semaphore.h>
 
-#define ORAM_RESHUFFLE_RATE 20
+#define ORAM_RESHUFFLE_RATE 21
 #define ORAM_FILE_CLIENT_FORMAT "ORAM_CLIENT.meta"
 
 typedef struct oram_request_queue_block{
@@ -59,6 +59,8 @@ typedef struct {
     client_storage_ctx *client_storage;
     int oram_size;
     int oram_tree_height;
+    int oram_tree_leaf_count;
+    int oram_tree_leaf_start;
     int node_count;
     int *server_working_queue;
     int backup_count;

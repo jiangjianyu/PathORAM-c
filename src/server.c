@@ -207,6 +207,7 @@ void * func_pre(void *args) {
     socket_write_bucket *write_bucket_ctx = (socket_write_bucket *) sock_ctx->buf;
     socket_read_block *read_block_ctx = (socket_read_block *) sock_ctx->buf;
     socket_get_metadata *get_metadata_ctx = (socket_get_metadata *) sock_ctx->buf;
+    socket_write_meta *write_meta_ctx = (socket_write_meta *)sock_ctx->buf;
 
     socket_path_header *path_header_ctx = (socket_path_header *) sock_ctx->buf;
     socket_path_header *path_header_ctx_r = (socket_path_header *) sock_ctx_r->buf;
@@ -293,6 +294,12 @@ void * func_pre(void *args) {
                     send_len = ORAM_SOCKET_INIT_SIZE_R;
                     queue_block->pos = -1;
                     break;
+                case SOCKET_WRITE_META:
+                    if (r != ORAM_SOCKET_WRITE_META_SIZE)
+                        sock_recv_add(queue_block->sock, buff, r, ORAM_SOCKET_WRITE_META_SIZE);
+                    send_len = ORAM_SOCKET_OVERHEAD;
+                    queue_block->pos = write_meta_ctx->bucket_id;
+                    break;
                 default:
                     continue;
             }
@@ -319,6 +326,7 @@ void * func_main(void *args) {
     socket_init *init_ctx;
     socket_init_r *init_ctx_r;
 
+
     while (ctx->running) {
         sem_wait(&ctx->main_queue->queue_semaphore);
         pthread_mutex_lock(&ctx->main_queue->queue_mutex);
@@ -330,6 +338,7 @@ void * func_main(void *args) {
         }
         LL_DELETE(ctx->main_queue->queue_list, queue_block);
         pthread_mutex_unlock(&ctx->main_queue->queue_mutex);
+        socket_write_meta *write_meta = (socket_write_meta *)queue_block->buff;
         switch (queue_block->type) {
             case SOCKET_INIT:
                 init_ctx = (socket_init *) queue_block->buff;
@@ -391,6 +400,10 @@ void * func_main(void *args) {
             case SOCKET_READ_BLOCK:
                 read_block(queue_block->pos, (socket_read_block *)queue_block->buff,
                            (socket_read_block_r *)queue_block->buff_r, ctx);
+                break;
+            case SOCKET_WRITE_META:
+                log_detail("write meta to %d", queue_block->pos);
+                memcpy(get_bucket(queue_block->pos, ctx)->encrypt_metadata, write_meta->encrypt_meta, ORAM_CRYPT_META_SIZE);
                 break;
             default:
                 break;
