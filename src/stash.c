@@ -3,6 +3,8 @@
 //
 
 #include "stash.h"
+#include "performance.h"
+
 int init_stash(client_stash *stash, int size) {
     stash->address_to_stash = NULL;
     stash->bucket_to_stash = calloc(size, sizeof(stash_block *));
@@ -11,6 +13,7 @@ int init_stash(client_stash *stash, int size) {
 }
 
 void add_to_stash(client_stash *stash, stash_block *block) {
+    P_ADD_STASH(1);
     stash_block *ne;
     HASH_FIND_INT(stash->address_to_stash, &block->address, ne);
     //Does not add into hash table when exists
@@ -38,6 +41,7 @@ int find_remove_by_bucket(client_stash *stash, int bucket_id, int max, stash_blo
         LL_DELETE(stash->bucket_to_stash[bucket_id], now);
         stash->bucket_to_stash_count[bucket_id]--;
     }
+    P_DEL_STASH(delete_max);
     return delete_max;
 }
 

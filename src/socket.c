@@ -4,6 +4,7 @@
 
 #include "socket.h"
 #include "log.h"
+#include "performance.h"
 
 int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
                char *host, int port, int if_bind) {
@@ -33,6 +34,7 @@ int sock_init(struct sockaddr_in *addr, socklen_t *addrlen, int *sock,
 }
 
 int sock_standard_send(int sock, unsigned char send_msg[], int len) {
+    P_ADD_BANDWIDTH(len);
     int r = send(sock, send_msg, len, 0);
     if (r <= 0)
         return -1;
@@ -40,6 +42,7 @@ int sock_standard_send(int sock, unsigned char send_msg[], int len) {
 }
 
 int sock_standard_recv(int sock, unsigned char recv_msg[], int sock_len) {
+    P_ADD_BANDWIDTH(sock_len);
     int total = 0, r = 0;
     while (total < sock_len) {
         r = recv(sock, recv_msg + total, ORAM_SOCKET_BUFFER, 0);

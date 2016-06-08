@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "client.h"
-
+#include "performance.h"
 int get_random_leaf(int pos_node, int oram_size) {
     int random = get_random(oram_size);
     while (2 * pos_node + 2 < oram_size) {
@@ -42,7 +42,7 @@ int gen_reverse_lexicographic(int g, int oram_size, int tree_height) {
 
 void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
                 unsigned char *socket_buf) {
-    log_f("read bucket %d to stash", bucket_id);
+//    log_f("read bucket %d to stash", bucket_id);
     int i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -70,7 +70,7 @@ void read_bucket_to_stash(client_ctx *ctx ,int bucket_id,
 
 void write_bucket_to_server(client_ctx *ctx, int bucket_id,
                  unsigned char *socket_buf) {
-    log_f("write bucket %d to server", bucket_id);
+//    log_f("write bucket %d to server", bucket_id);
     int count,i;
     oram_bucket_metadata meda;
     oram_bucket_metadata *meta = &meda;
@@ -181,6 +181,7 @@ int read_path(int pos, int address, unsigned char data[], client_ctx *ctx) {
 }
 
 int oblivious_access(int address, oram_access_op op, unsigned char data[], client_ctx *ctx) {
+    P_ADD_BANDWIDTH_ORIGINAL(ORAM_BLOCK_SIZE);
     int position_new, position, data_in, leaf_pos;
     unsigned char read_data[ORAM_BLOCK_SIZE];
     stash_block *block;
@@ -360,6 +361,7 @@ int client_create(client_ctx *ctx, int size_bucket, int re_init) {
         sock_send_recv(ctx->socket, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
     }
     log_f("Client Create");
+    P_INIT("0.0.0.0", 30010);
     return 0;
 }
 

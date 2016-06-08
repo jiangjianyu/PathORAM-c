@@ -7,6 +7,7 @@
 #include "client.h"
 #include "server.h"
 #include "daemon.h"
+#include "performance.h"
 
 
 static server_ctx sv_ctx;
@@ -61,6 +62,7 @@ int main (int argc, char* argv[]) {
 //            return -1;
         unsigned char data[ORAM_BLOCK_SIZE];
         int m;
+        p_get_performance("127.0.0.1", 30010);
         for(m = 0;m < 100;m++) {
             data[0] = m;
             oblivious_access(m, ORAM_ACCESS_WRITE, data, &ctx);
@@ -69,9 +71,10 @@ int main (int argc, char* argv[]) {
             oblivious_access(m, ORAM_ACCESS_READ, data, &ctx);
             f[m] = data[0];
         }
-        for (m = 0;m < 100;m++)
-            assert(f[m] == m);
-        client_save(&ctx, 0);
+        p_get_performance("127.0.0.1", 30010);
+//        for (m = 0;m < 100;m++)
+//            assert(f[m] == m);
+//        client_save(&ctx, 0);
     }
     return 0;
 }
