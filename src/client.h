@@ -14,7 +14,7 @@
 #include "args.h"
 #include <semaphore.h>
 
-#define ORAM_RESHUFFLE_RATE 21
+#define ORAM_RESHUFFLE_RATE 130
 #define ORAM_FILE_CLIENT_FORMAT "ORAM_CLIENT.meta"
 
 typedef struct oram_request_queue_block{
@@ -88,6 +88,11 @@ typedef struct access_ctx {
     client_storage_ctx *storage_ctx;
     int metadata_counter[ORAM_TREE_DEPTH];
 } access_ctx;
+
+typedef struct create_func_args {
+    int sock;
+    int size;
+} create_func_args;
 
 client_ctx client_t;
 

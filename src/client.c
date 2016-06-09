@@ -8,8 +8,6 @@
 #include <stddef.h>
 #include "client.h"
 #include "performance.h"
-#include "socket.h"
-#include "bucket.h"
 
 
 int get_random_leaf(int pos_node, int oram_size) {
@@ -433,6 +431,32 @@ int node_init(client_storage_ctx *ctx, oram_node_pair *args) {
     return 0;
 }
 
+void * create_func(void *args) {
+    unsigned char socket_buf[ORAM_SOCKET_BUFFER_MAX];
+    int i,j;
+    socket_ctx *sock_ctx = (socket_ctx *)socket_buf;
+    socket_write_bucket *sock_write = (socket_write_bucket *)sock_ctx->buf;
+    oram_bucket_metadata zero_meta;
+    sock_ctx->type = SOCKET_WRITE_BUCKET;
+    create_func_args *arg = (create_func_args *)args;
+    for (i = 0;i < ORAM_BUCKET_REAL;i++) {
+        zero_meta.address[i] = -1;
+        get_random_permutation(ORAM_BUCKET_SIZE, zero_meta.offset);
+    }
+    for (i = 0; i < arg->size;i++) {
+        encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)&zero_meta, ORAM_META_SIZE);
+
+        for (j = 0;j < ORAM_BUCKET_SIZE;j++) {
+            encrypt_message(sock_write->bucket.data[j], client_t.blank_data, ORAM_BLOCK_SIZE);
+        }
+        memset(sock_write->bucket.valid_bits, 1,sizeof(_Bool) * ORAM_BUCKET_SIZE);
+        sock_write->bucket.read_counter = 0;
+        sock_write->bucket_id = i;
+        sock_send_recv(arg->sock, socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
+    }
+    return NULL;
+}
+
 int client_create(int node_count,int size_bucket, int backup, int re_init, oram_client_args *args) {
     int i, bk[backup], j, w, sock_set[node_count*backup], m;
     int address_position_map[size_bucket * node_count * backup][80];
@@ -496,8 +520,13 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
         zero_meta.address[i] = -1;
         get_random_permutation(ORAM_BUCKET_SIZE, zero_meta.offset);
     }
+    pthread_t pid[node_count*backup];
+    create_func_args ar[node_count*backup];
     for (m = 0;m < node_count*backup;m++) {
-        for (i = 0; i < size_bucket;i++) {
+        ar[m].sock = sock_set[m];
+        ar[m].size = size_bucket;
+        pthread_create(&pid[m], NULL, create_func, (void *)&ar[m]);
+/*        for (i = 0; i < size_bucket;i++) {
             encrypt_message(sock_write->bucket.encrypt_metadata, (unsigned char *)&zero_meta, ORAM_META_SIZE);
 
             for (j = 0;j < ORAM_BUCKET_SIZE;j++) {
@@ -507,7 +536,7 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
             sock_write->bucket.read_counter = 0;
             sock_write->bucket_id = i;
             sock_send_recv(sock_set[m], socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
-        }
+        }*/
     }
 /*    //construct a new bucket
     bucket->read_counter = 0;
@@ -552,6 +581,9 @@ int client_create(int node_count,int size_bucket, int backup, int re_init, oram_
             sock_send_recv(sock_set[m], socket_buf, socket_buf, ORAM_SOCKET_WRITE_SIZE, ORAM_SOCKET_WRITE_SIZE_R);
         }
     }*/
+    for (m = 0;m < node_count*backup;m++) {
+        pthread_join(pid[0], NULL);
+    }
     log_f("Client Create");
     client_t.running = 1;
     for (i = 0;i < node_count * backup;i++) {
@@ -720,6 +752,7 @@ void * worker_func(void *args) {
         queue_block->call_back_list = NULL;
         queue_block->op = access->op;
         if (queue_block_find) {
+            errf("add %d to list", queue_block->address);
             if (queue_block->op == ORAM_ACCESS_WRITE)
                 memcpy(queue_block->data, access->data, ORAM_BLOCK_SIZE);
             LL_APPEND(queue_block_find->call_back_list,queue_block);
@@ -738,8 +771,10 @@ void * worker_func(void *args) {
         access_r->status = SOCKET_RESPONSE_SUCCESS;
         sock_standard_send(queue_block->sock, buf_r, ORAM_SOCKET_ACCESS_SIZE_R);
         //TODO if lock fail ?
-        if (stash_block_lock(client_t.stash, queue_block->address, ORAM_LOCK_READ) == 0) {
-            err("error in locking stash");
+        if (queue_block->call_back_list) {
+            if (stash_block_lock(client_t.stash, queue_block->address, ORAM_LOCK_READ) == 0) {
+                err("error in locking stash");
+            }
         }
         for (call_back_list = queue_block->call_back_list; call_back_list != NULL;call_back_list = call_back_list->next_l) {
             find_edit_by_address(client_t.stash, call_back_list->address, call_back_list->op, call_back_list->data);
@@ -782,5 +817,6 @@ int client_access(int address, oram_access_op op,unsigned char data[], oram_node
 //    log_f("accessing %d", address);
     sock_send_recv(sock, buf, buf, ORAM_SOCKET_ACCESS_SIZE, ORAM_SOCKET_ACCESS_SIZE_R);
     memcpy(data, access_sock_r->data, ORAM_BLOCK_SIZE);
+    close(sock);
     return 0;
 }

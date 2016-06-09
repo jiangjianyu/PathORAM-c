@@ -33,8 +33,17 @@ void * p_func(void *args) {
 
     while(1) {
         recvfrom(p_ctx.p_sock, buf, sizeof(int), 0, (struct sockaddr *)&client_addr, &client_addr_len);
+        log_sys("new request");
         p_get_time_now(&p_ctx.p_now_time);
-        sendto(p_ctx.p_sock, &p_ctx, sizeof(p_per_ctx), 0, (struct sockaddr *)&client_addr, client_addr_len);
+        printf("Bandwidth total: %dGB %dMB %dKB %dB, original: %dGB %dMB %dKB %dB\n",
+               p_ctx.p_total_bandwidth.gbytes, p_ctx.p_total_bandwidth.mbytes,
+               p_ctx.p_total_bandwidth.kbytes, p_ctx.p_total_bandwidth.bytes,
+               p_ctx.p_original_bandwidth.gbytes, p_ctx.p_original_bandwidth.mbytes,
+               p_ctx.p_original_bandwidth.kbytes, p_ctx.p_original_bandwidth.bytes);
+        printf("Stash size: %lld\n", p_ctx.p_stash_size);
+        printf("Total Time: %ld seconds %ld useconds\n", p_ctx.p_now_time.tv_sec - p_ctx.p_start_time.tv_sec,
+               p_ctx.p_now_time.tv_usec - p_ctx.p_start_time.tv_usec);
+//        sendto(p_ctx.p_sock, &p_ctx, sizeof(p_per_ctx), 0, (struct sockaddr *)&client_addr, client_addr_len);
     }
 }
 
@@ -61,6 +70,7 @@ void p_bandwidth_add(struct p_bandwidth *p, int add) {
         p->mbytes += left;
     }
     if (p->mbytes >= 1024) {
+        left = p->mbytes >> 10;
         p->mbytes = p->mbytes % 1024;
         p->gbytes += left;
     }
@@ -76,7 +86,7 @@ void p_get_performance(char *host, int port) {
     sock_len = sizeof(addr);
     p_ctx.p_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     sendto(p_ctx.p_sock, buf, sizeof(int), 0, (struct sockaddr *)&addr, sock_len);
-    recvfrom(p_ctx.p_sock, &p_ctx, sizeof(p_per_ctx), 0, NULL, NULL);
+//    recvfrom(p_ctx.p_sock, &p_ctx, sizeof(p_per_ctx), 0, (struct sockaddr *)&addr, &sock_len);
     printf("Bandwidth total: %dGB %dMB %dKB %dB, original: %dGB %dMB %dKB %dB\n",
             p_ctx.p_total_bandwidth.gbytes, p_ctx.p_total_bandwidth.mbytes,
            p_ctx.p_total_bandwidth.kbytes, p_ctx.p_total_bandwidth.bytes,

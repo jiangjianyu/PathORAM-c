@@ -18,6 +18,26 @@ static void sig_handler(int signo) {
         server_stop(&sv_ctx);
 }
 
+void * access_func(void *args){
+    int i;
+    int *base = (int *)args;
+    unsigned char data[ORAM_BLOCK_SIZE];
+    oram_node_pair pair;
+    pair.host = "127.0.0.1";
+    pair.port = 30005;
+
+    for (i = *base * 1000;i < 1000 + *base*1000;i++) {
+//        data[0] = i % 256;
+        client_access(i, ORAM_ACCESS_WRITE, data, &pair);
+    }
+    for (i = *base * 1000;i < 1000 + *base*1000;i++) {
+        client_access(i, ORAM_ACCESS_READ, data, &pair);
+//        f[i] = data[0];
+    }
+    printf("request finish all %d\n", *base);
+    return NULL;
+}
+
 int main (int argc, char* argv[]) {
     int f[6000];
     oram_args_t *args = malloc(sizeof(oram_args_t));
@@ -70,33 +90,30 @@ int main (int argc, char* argv[]) {
         ar.save_file = "client.meta";
         ar.load_file = "client.meta";
         crypt_init(ar.key);
-        if (client_create(2, 2000, 2, 1, &ar) < 0)
+        if (client_create(2, 2185, 1, 1, &ar) < 0)
             return -1;
 //        if (client_load(&ar, 1) < 0)
 //            return -1;
         listen_accept(&ar);
     }
     else if (args->mode == ORAM_MODE_CLIENT) {
-        int i;
-        unsigned char data[ORAM_BLOCK_SIZE];
-        oram_node_pair pair;
-        pair.host = "127.0.0.1";
-        pair.port = 30005;
+        pthread_t pid[6];
+        int access_id[6];
+        int m;
         p_get_performance("127.0.0.1", 30010);
-        for (i = 0;i < 6000;i++) {
-            data[0] = i % 256;
-            client_access(i, ORAM_ACCESS_WRITE, data, &pair);
+        for (m = 0;m < 4;m++) {
+            access_id[m] = m;
+            pthread_create(&pid[m],NULL, access_func, (void*)&access_id[m]);
         }
-        for (i = 0;i < 6000;i++) {
-            client_access(i, ORAM_ACCESS_READ, data, &pair);
-            f[i] = data[0];
+        for (m = 0;m < 4;m++) {
+            pthread_join(pid[m], NULL);
         }
         p_get_performance("127.0.0.1", 30010);
 //        client_access(-1, ORAM_ACCESS_READ, data, &pair);
-        for (i = 0;i < 6000;i++) {
-            log_f("assert %d == %d, bool %d", i, f[i], f[i] == i % 256);
-            assert(f[i] == i % 256);
-        }
+//        for (i = 0;i < 6000;i++) {
+//            log_f("assert %d == %d, bool %d", i, f[i], f[i] == i % 256);
+//            assert(f[i] == i % 256);
+//        }
     }
     return 0;
 }
